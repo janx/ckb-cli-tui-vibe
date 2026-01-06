@@ -413,14 +413,14 @@ impl TuiApp {
                 self.history_search_matches.clear();
             }
             (KeyModifiers::CONTROL, KeyCode::Char('r')) | (_, KeyCode::Up) => {
-                if !self.history_search_matches.is_empty() {
-                    self.history_search_index = (self.history_search_index + 1)
-                        .min(self.history_search_matches.len().saturating_sub(1));
+                if self.history_search_index > 0 {
+                    self.history_search_index -= 1;
                 }
             }
             (_, KeyCode::Down) => {
-                if self.history_search_index > 0 {
-                    self.history_search_index -= 1;
+                if !self.history_search_matches.is_empty() {
+                    self.history_search_index = (self.history_search_index + 1)
+                        .min(self.history_search_matches.len().saturating_sub(1));
                 }
             }
             (_, KeyCode::Enter) => {

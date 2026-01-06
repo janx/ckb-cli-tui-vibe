@@ -124,7 +124,7 @@ fn render_status_bar(
     let sync_indicator = if chain_state.is_syncing { "⟳" } else { "✓" };
 
     let status = format!(
-        " CKB CLI v2.0.0 │ Network: {} │ Height: {} │ Peers: {} │ {} ",
+        " CKB CLI v3.0.0 │ Network: {} │ Height: {} │ Peers: {} │ {} ",
         network, chain_state.height, chain_state.peers, sync_indicator
     );
 

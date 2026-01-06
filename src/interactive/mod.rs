@@ -18,10 +18,18 @@ pub enum InteractiveMode {
     Modern,
 }
 
+// Can't use #[derive(Default)] because default varies by platform
 #[allow(clippy::derivable_impls)]
 impl Default for InteractiveMode {
     fn default() -> Self {
-        InteractiveMode::Classic
+        #[cfg(unix)]
+        {
+            InteractiveMode::Modern
+        }
+        #[cfg(not(unix))]
+        {
+            InteractiveMode::Classic
+        }
     }
 }
 

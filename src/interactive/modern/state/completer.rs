@@ -152,4 +152,33 @@ mod tests {
         assert!(fuzzy_match("get_tip_header", "gth"));
         assert!(!fuzzy_match("wallet", "xyz"));
     }
+
+    #[test]
+    fn test_fuzzy_match_empty() {
+        assert!(fuzzy_match("wallet", ""));
+        assert!(fuzzy_match("", ""));
+    }
+
+    #[test]
+    fn test_fuzzy_match_exact() {
+        assert!(fuzzy_match("wallet", "wallet"));
+        assert!(fuzzy_match("rpc", "rpc"));
+    }
+
+    #[test]
+    fn test_fuzzy_match_case_sensitivity() {
+        assert!(!fuzzy_match("wallet", "WAL"));
+        assert!(fuzzy_match("WALLET", "WAL"));
+    }
+
+    #[test]
+    fn test_completion_struct() {
+        let completion = Completion {
+            display: "--help".to_string(),
+            replacement: "--help".to_string(),
+            is_required: false,
+        };
+        assert_eq!(completion.display, "--help");
+        assert!(!completion.is_required);
+    }
 }

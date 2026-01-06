@@ -1,9 +1,9 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 3 Complete (Weeks 7-9)  
+**Status**: Phase 4 In Progress (Weeks 10-11) - Modern TUI is default on Unix  
 **Target**: ckb-cli v2.0.0  
-**Platform**: Unix-first (Linux/macOS), Windows in Phase 4
+**Platform**: Unix-first (Linux/macOS), Windows uses Classic mode
 
 ---
 
@@ -551,27 +551,30 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 
 **Goal**: Cross-platform support, documentation, release, plus high-value deferred features
 
-#### Week 10: Platform Support & Deferred Features
-- [ ] Test on Windows Terminal
-- [ ] Fix Windows-specific issues (path separators, terminal setup)
-- [ ] Update CI for Windows builds
-- [ ] Cross-platform testing matrix
-- [ ] **Deferred from W7**: WatchView for auto-refreshing commands (e.g., watch balance)
-- [ ] **Deferred from W8**: Copy-to-clipboard support (add `arboard` dependency)
+#### Week 10: Platform Support & Deferred Features ✅ IN PROGRESS
+- [x] Make modern TUI the default on Unix (InteractiveMode::default() returns Modern)
+- [x] Update CHANGELOG.md with comprehensive TUI feature documentation
+- [x] Update README.md with Modern TUI section
+- [x] Add unit tests for ui_state and command_state modules (17 tests total)
+- [x] Run clippy and fix warnings
+- [ ] Test on Windows Terminal (Unix-only for now, Windows uses Classic)
+- [ ] **Deferred**: WatchView for auto-refreshing commands
+- [ ] **Deferred**: Copy-to-clipboard support (arboard dependency)
 
 **Deliverables**:
-- Windows compatibility fixes
-- CI/CD updates (`.github/workflows/ci.yaml`)
-- `src/interactive/modern/ui/watch_view.rs` (optional)
+- ✅ `src/interactive/mod.rs` - Modern TUI default on Unix
+- ✅ Updated `CHANGELOG.md` with full TUI feature list
+- ✅ Updated `README.md` with TUI documentation
+- Windows compatibility deferred (TUI is Unix-only via `#[cfg(unix)]`)
 
 #### Week 11: Documentation & Release
 - [ ] Write user guide with screenshots/GIFs
-- [ ] Update `README.md` with TUI features section
-- [ ] Create migration guide (classic → modern)
-- [ ] Write release notes and update `CHANGELOG.md`
+- [x] Update `README.md` with TUI features section
+- [x] Create migration guide (classic → modern) - documented in README
+- [x] Write release notes and update `CHANGELOG.md`
 - [ ] Integration testing suite
 - [ ] Performance testing and optimization
-- [ ] Make modern TUI the default (remove `--modern` flag requirement)
+- [x] Make modern TUI the default (on Unix)
 
 **Deliverables**:
 - `docs/TUI-Guide.md`

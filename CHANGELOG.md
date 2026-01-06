@@ -1,4 +1,21 @@
 # v2.0.0
+
+## Modern TUI (Unix)
+* **[New Feature]** Modern TUI REPL is now the default on Unix platforms (Linux/macOS)
+  - Split-pane layout: output panel, status sidebar, and command input
+  - Live chain status: real-time block height, epoch, peers, and sync status
+  - Syntax highlighting: color-coded JSON/YAML output and command input
+  - Tab system: Command and Logs views (Alt+1/Alt+2 or Ctrl+Tab to switch)
+  - Command palette: Ctrl+P for fuzzy command search
+  - Output search: Press `/` in output pane to search with match highlighting
+  - Smart completion: Tab for contextual completions with fuzzy matching
+  - History search: Ctrl+R for incremental history search
+  - Mouse support: click to focus panes, scroll output
+  - Export output: Ctrl+E to save session output to file
+  - Help overlay: Press `?` to view all keyboard shortcuts
+  - Use `--classic` flag to revert to rustyline-based REPL
+
+## Other Changes
 * Fix: detect multisig type from input cells in deploy #652
 * Warn user if lock script is not well-known during deploy #653
 * Update ckb crates to 1.0 #645

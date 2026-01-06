@@ -36,6 +36,27 @@ Directly go to **gorgeous** interactive mode:
 ckb-cli
 ```
 
+## Modern TUI (v2.0+)
+
+On Unix platforms (Linux/macOS), ckb-cli launches a modern TUI with:
+
+- **Split-pane layout**: Output panel, status sidebar, and command input
+- **Live chain status**: Real-time block height, epoch, peers, and sync status
+- **Syntax highlighting**: Color-coded JSON/YAML output
+- **Tab system**: Switch between Command and Logs views (Alt+1/Alt+2)
+- **Command palette**: Ctrl+P for fuzzy command search
+- **Smart completion**: Tab for contextual completions
+- **History search**: Ctrl+R for incremental search
+- **Mouse support**: Click to focus, scroll output
+- **Export**: Ctrl+E to save session output
+
+Press `?` to view all keyboard shortcuts.
+
+To use the classic rustyline-based REPL instead:
+```
+ckb-cli --classic
+```
+
 Show available commands
 ``` shell
 # Top level help doc

@@ -210,4 +210,66 @@ mod tests {
 
         assert_eq!(state.history.len(), 1);
     }
+
+    #[test]
+    fn test_truncate_output() {
+        let short_output = "line1\nline2\nline3";
+        assert_eq!(super::truncate_output(short_output, 10), short_output);
+
+        let long_output = (0..100)
+            .map(|i| format!("line{}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let truncated = super::truncate_output(&long_output, 10);
+        assert!(truncated.contains("... (90 more lines truncated)"));
+        assert!(truncated.starts_with("line0\n"));
+    }
+
+    #[test]
+    fn test_empty_history_navigation() {
+        let temp_dir = env::temp_dir();
+        let mut state = CommandState::new(&temp_dir).unwrap();
+        state.input = "test".to_string();
+
+        state.navigate_history_up();
+        assert_eq!(state.input, "test");
+
+        state.navigate_history_down();
+        assert_eq!(state.input, "test");
+    }
+
+    #[test]
+    fn test_add_output() {
+        let temp_dir = env::temp_dir();
+        let mut state = CommandState::new(&temp_dir).unwrap();
+
+        state.add_output("cmd1".to_string(), "result1".to_string(), true);
+        state.add_output("cmd2".to_string(), "result2".to_string(), false);
+
+        assert_eq!(state.output_buffer.len(), 2);
+        assert_eq!(state.output_buffer[0].command, "cmd1");
+        assert!(state.output_buffer[0].success);
+        assert!(!state.output_buffer[1].success);
+    }
+
+    #[test]
+    fn test_clear_output() {
+        let temp_dir = env::temp_dir();
+        let mut state = CommandState::new(&temp_dir).unwrap();
+
+        state.add_output("cmd".to_string(), "result".to_string(), true);
+        assert_eq!(state.output_buffer.len(), 1);
+
+        state.clear_output();
+        assert_eq!(state.output_buffer.len(), 0);
+    }
+
+    #[test]
+    fn test_empty_command_not_added() {
+        let temp_dir = env::temp_dir();
+        let mut state = CommandState::new(&temp_dir).unwrap();
+
+        state.add_to_history("".to_string());
+        assert_eq!(state.history.len(), 0);
+    }
 }

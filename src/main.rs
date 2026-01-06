@@ -293,14 +293,14 @@ You may also use some public available nodes, check the list of public nodes: ht
         .arg(
             Arg::with_name("classic")
                 .long("classic")
-                .about("Use classic rustyline-based REPL instead of modern TUI"),
+                .about("Use classic rustyline-based REPL (default on non-Unix platforms)"),
         );
 
     #[cfg(unix)]
     let app = app.arg(
         Arg::with_name("modern")
             .long("modern")
-            .about("Use modern TUI interface (experimental)"),
+            .about("Use modern TUI interface (default on Unix, ignored if already default)"),
     );
 
     app

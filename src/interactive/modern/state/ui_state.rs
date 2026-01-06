@@ -84,3 +84,63 @@ impl Default for UiState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_layout_areas_contains() {
+        let layout = LayoutAreas {
+            output: (0, 0, 50, 20),
+            sidebar: (50, 0, 25, 20),
+            input: (0, 20, 75, 5),
+        };
+
+        assert!(layout.contains(Pane::Output, 25, 10));
+        assert!(!layout.contains(Pane::Output, 60, 10));
+
+        assert!(layout.contains(Pane::Sidebar, 60, 10));
+        assert!(!layout.contains(Pane::Sidebar, 25, 10));
+
+        assert!(layout.contains(Pane::Input, 30, 22));
+        assert!(!layout.contains(Pane::Input, 30, 10));
+    }
+
+    #[test]
+    fn test_layout_areas_pane_at() {
+        let layout = LayoutAreas {
+            output: (0, 0, 50, 20),
+            sidebar: (50, 0, 25, 20),
+            input: (0, 20, 75, 5),
+        };
+
+        assert_eq!(layout.pane_at(25, 10), Some(Pane::Output));
+        assert_eq!(layout.pane_at(60, 10), Some(Pane::Sidebar));
+        assert_eq!(layout.pane_at(30, 22), Some(Pane::Input));
+        assert_eq!(layout.pane_at(100, 100), None);
+    }
+
+    #[test]
+    fn test_pane_default() {
+        assert_eq!(Pane::default(), Pane::Input);
+    }
+
+    #[test]
+    fn test_tab_default() {
+        assert_eq!(Tab::default(), Tab::Command);
+    }
+
+    #[test]
+    fn test_ui_state_default() {
+        let state = UiState::default();
+        assert_eq!(state.focused_pane, Pane::Input);
+        assert_eq!(state.output_scroll, 0);
+        assert!(!state.show_help);
+        assert!(!state.show_completion);
+        assert_eq!(state.sidebar_width, 25);
+        assert_eq!(state.current_tab, Tab::Command);
+        assert!(!state.show_palette);
+        assert!(!state.output_search_mode);
+    }
+}

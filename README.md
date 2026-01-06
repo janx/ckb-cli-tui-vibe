@@ -1,4 +1,4 @@
-# ckb-cli with TUI
+# ckb-cli with vibed TUI
 
 This is a fork of ckb-cli. Goals?
 

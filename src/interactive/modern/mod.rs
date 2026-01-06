@@ -8,6 +8,7 @@ use std::panic;
 use std::path::PathBuf;
 
 use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -25,14 +26,18 @@ type Tui = Terminal<CrosstermBackend<Stdout>>;
 fn init_terminal() -> io::Result<Tui> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     Terminal::new(backend)
 }
 
 fn restore_terminal(terminal: &mut Tui) -> io::Result<()> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()
 }
 
@@ -40,7 +45,7 @@ fn install_panic_hook() {
     let original_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
         let _ = disable_raw_mode();
-        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
         original_hook(panic_info);
     }));
 }

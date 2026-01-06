@@ -1,7 +1,7 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 2 In Progress (Week 5 Complete)  
+**Status**: Phase 2 Complete (Weeks 4-6)  
 **Target**: ckb-cli v2.0.0  
 **Platform**: Unix-first (Linux/macOS), Windows in Phase 4
 
@@ -458,18 +458,24 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 - Ctrl+R opens centered history search popup with incremental filtering
 - Completion popup shows above input, color-coded (green=commands, cyan=flags, red=required)
 
-#### Week 6: Live Status & Interactivity
-- [ ] Build `StatusSidebar` widget
-- [ ] Display live chain metrics (height, peers, sync status)
-- [ ] Add mouse support (click to focus panes, scroll output)
-- [ ] Implement loading spinners (`throbber-widgets-tui`) for long commands
-- [ ] Add help overlay (`?` key toggles keybinding reference)
-- [ ] Pane focus indicators (green border on active pane)
+#### Week 6: Live Status & Interactivity ✅ COMPLETED
+- [x] Build `StatusSidebar` widget (already in sidebar)
+- [x] Display live chain metrics (height, peers, sync status)
+- [x] Add mouse support (click to focus panes, scroll output)
+- [ ] Implement loading spinners (deferred to Phase 3 - requires async refactor)
+- [x] Add help overlay (`?` key toggles keybinding reference)
+- [x] Pane focus indicators (green border on active pane)
 
 **Deliverables**:
-- `src/interactive/modern/ui/widgets/status_sidebar.rs`
-- `src/interactive/modern/ui/widgets/help_overlay.rs`
-- `src/interactive/modern/event/handler.rs` (mouse events)
+- `src/interactive/modern/ui/mod.rs` - help overlay, layout tracking ✅
+- `src/interactive/modern/state/ui_state.rs` - LayoutAreas for mouse hit testing ✅
+- `src/interactive/modern/mod.rs` - mouse capture enable/disable ✅
+
+**Implementation Notes**:
+- Mouse click focuses panes, scroll wheel navigates output
+- Help overlay shows all keyboard shortcuts (? to toggle)
+- F1/F2/F3 keys switch focus between Sidebar/Output/Input
+- Layout areas tracked for mouse hit-testing
 
 **Milestone**: ✅ Feature parity with classic REPL + rich visual enhancements
 

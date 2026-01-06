@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use regex::Regex;
 use tokio::sync::mpsc;
@@ -27,7 +27,7 @@ use crate::utils::{
 };
 
 use super::event::AppEvent;
-use super::state::{ChainState, CommandState, Completion, TuiCompleter, UiState};
+use super::state::{ChainState, CommandState, Completion, Pane, TuiCompleter, UiState};
 use super::ui;
 
 const ENV_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
@@ -139,18 +139,17 @@ impl TuiApp {
         });
 
         while !self.should_quit {
-            {
-                let chain_state = self.chain_state.read().map_err(|e| e.to_string())?;
-                terminal
-                    .draw(|frame| ui::render(frame, self, &chain_state))
-                    .map_err(|e| format!("Failed to draw: {}", e))?;
-            }
+            let chain_state = self.chain_state.read().map_err(|e| e.to_string())?.clone();
+
+            terminal
+                .draw(|frame| ui::render(frame, self, &chain_state))
+                .map_err(|e| format!("Failed to draw: {}", e))?;
 
             match event_rx.blocking_recv() {
                 Some(AppEvent::Key(key)) => self.handle_key_event(key),
                 Some(AppEvent::ChainUpdate(_)) => {}
                 Some(AppEvent::Resize(_, _)) => {}
-                Some(AppEvent::Mouse(_)) => {}
+                Some(AppEvent::Mouse(mouse)) => self.handle_mouse_event(mouse),
                 Some(AppEvent::Tick) => {}
                 None => break,
             }
@@ -220,6 +219,16 @@ impl TuiApp {
             }
         }
 
+        if self.ui_state.show_help {
+            match key.code {
+                KeyCode::Esc | KeyCode::Char('?') => {
+                    self.ui_state.show_help = false;
+                }
+                _ => {}
+            }
+            return;
+        }
+
         match (key.modifiers, key.code) {
             (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
                 self.should_quit = true;
@@ -229,6 +238,18 @@ impl TuiApp {
             }
             (KeyModifiers::CONTROL, KeyCode::Char('r')) => {
                 self.start_history_search();
+            }
+            (_, KeyCode::F(1)) => {
+                self.ui_state.focused_pane = Pane::Sidebar;
+            }
+            (_, KeyCode::F(2)) => {
+                self.ui_state.focused_pane = Pane::Output;
+            }
+            (_, KeyCode::F(3)) => {
+                self.ui_state.focused_pane = Pane::Input;
+            }
+            (_, KeyCode::Char('?')) => {
+                self.ui_state.show_help = true;
             }
             (_, KeyCode::Tab) => {
                 self.trigger_completion();
@@ -334,6 +355,39 @@ impl TuiApp {
         }
         self.ui_state.show_completion = false;
         self.current_completions.clear();
+    }
+
+    fn handle_mouse_event(&mut self, mouse: MouseEvent) {
+        match mouse.kind {
+            MouseEventKind::Down(_) => {
+                if let Some(pane) = self.ui_state.layout.pane_at(mouse.column, mouse.row) {
+                    self.ui_state.focused_pane = pane;
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                if self
+                    .ui_state
+                    .layout
+                    .contains(Pane::Output, mouse.column, mouse.row)
+                {
+                    self.ui_state.output_scroll = self.ui_state.output_scroll.saturating_sub(3);
+                }
+            }
+            MouseEventKind::ScrollDown => {
+                if self
+                    .ui_state
+                    .layout
+                    .contains(Pane::Output, mouse.column, mouse.row)
+                {
+                    self.ui_state.output_scroll = self
+                        .ui_state
+                        .output_scroll
+                        .saturating_add(3)
+                        .min(self.ui_state.max_output_scroll);
+                }
+            }
+            _ => {}
+        }
     }
 
     fn execute_command(&mut self) {

@@ -9,7 +9,6 @@ use std::time::Duration;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use regex::Regex;
-use tokio::sync::mpsc;
 
 use ckb_signer::KeyStore;
 
@@ -164,7 +163,7 @@ impl TuiApp {
             self.config.get_url()
         )));
 
-        let (event_tx, mut event_rx) = mpsc::channel::<AppEvent>(100);
+        let (event_tx, event_rx) = std::sync::mpsc::channel::<AppEvent>();
         let shutdown = Arc::new(AtomicBool::new(false));
 
         let chain_state = Arc::clone(&self.chain_state);
@@ -179,7 +178,7 @@ impl TuiApp {
                     if let Ok(mut chain) = chain_state.write() {
                         *chain = state.clone();
                     }
-                    let _ = event_tx_clone.blocking_send(AppEvent::ChainUpdate(state));
+                    let _ = event_tx_clone.send(AppEvent::ChainUpdate(state));
                 }
                 std::thread::sleep(Duration::from_secs(2));
             }
@@ -196,7 +195,7 @@ impl TuiApp {
                             Event::Resize(w, h) => AppEvent::Resize(w, h),
                             _ => continue,
                         };
-                        if event_tx.blocking_send(app_event).is_err() {
+                        if event_tx.send(app_event).is_err() {
                             break;
                         }
                     }
@@ -211,9 +210,9 @@ impl TuiApp {
                 .draw(|frame| ui::render(frame, self, &chain_state))
                 .map_err(|e| format!("Failed to draw: {}", e))?;
 
-            match event_rx.blocking_recv() {
-                Some(AppEvent::Key(key)) => self.handle_key_event(key),
-                Some(AppEvent::ChainUpdate(state)) => {
+            match event_rx.recv_timeout(Duration::from_millis(100)) {
+                Ok(AppEvent::Key(key)) => self.handle_key_event(key),
+                Ok(AppEvent::ChainUpdate(state)) => {
                     let prev_height = chain_state.height;
                     if state.height != prev_height && prev_height > 0 {
                         self.add_log(LogEntry::debug(format!(
@@ -222,10 +221,11 @@ impl TuiApp {
                         )));
                     }
                 }
-                Some(AppEvent::Resize(_, _)) => {}
-                Some(AppEvent::Mouse(mouse)) => self.handle_mouse_event(mouse),
-                Some(AppEvent::Tick) => {}
-                None => break,
+                Ok(AppEvent::Resize(_, _)) => {}
+                Ok(AppEvent::Mouse(mouse)) => self.handle_mouse_event(mouse),
+                Ok(AppEvent::Tick) => {}
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
 

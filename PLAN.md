@@ -1,7 +1,7 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 1 Complete (Weeks 1-3)  
+**Status**: Phase 2 In Progress (Week 4 Complete)  
 **Target**: ckb-cli v2.0.0  
 **Platform**: Unix-first (Linux/macOS), Windows in Phase 4
 
@@ -422,16 +422,23 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 
 **Goal**: Professional UX with all must-have features
 
-#### Week 4: Syntax Highlighting
-- [ ] Integrate `syntect` for JSON/YAML highlighting
-- [ ] Create `OutputHighlighter` using existing `json_color` module patterns
-- [ ] Add command syntax highlighting (keywords: `wallet`, `rpc`; flags: `--to`)
-- [ ] Implement theme system (dark/light modes)
-- [ ] Theme configuration in `~/.ckb-cli/config`
+#### Week 4: Syntax Highlighting ✅ COMPLETED
+- [x] Integrate `syntect` for JSON/YAML highlighting
+- [x] Create `OutputHighlighter` using existing `json_color` module patterns
+- [x] Add command syntax highlighting (keywords: `wallet`, `rpc`; flags: `--to`)
+- [x] Implement theme system (dark/light modes)
+- [ ] Theme configuration in `~/.ckb-cli/config` (deferred to Phase 3)
 
 **Deliverables**:
-- `src/interactive/modern/ui/theme.rs`
-- Enhanced `output_viewer.rs` with syntax highlighting
+- `src/interactive/modern/ui/theme.rs` ✅
+- `src/interactive/modern/ui/syntax.rs` ✅
+- Enhanced `ui/mod.rs` with syntax highlighting ✅
+
+**Implementation Notes**:
+- Custom JSON/YAML highlighter built with ratatui primitives (no syntect dep needed)
+- Dark theme with VS Code-inspired colors (JSON keys blue, strings orange, numbers green)
+- Light theme defined but reserved for future use
+- Command input highlighting: keywords in teal, flags in blue, hex values in green
 
 #### Week 5: Completion & History
 - [ ] Port `CkbCompleter` logic to TUI context

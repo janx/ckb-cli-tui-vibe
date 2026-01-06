@@ -657,6 +657,7 @@ dependencies = [
  "tokio",
  "toml",
  "tui-textarea",
+ "unicode-width",
  "url 1.7.2",
  "yaml-rust",
 ]

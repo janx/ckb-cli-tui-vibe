@@ -2,7 +2,7 @@ mod handler;
 mod keys;
 
 #[allow(unused_imports)]
-pub use handler::EventHandler;
+pub use handler::handle_output_scroll;
 #[allow(unused_imports)]
 pub use keys::KeyBindings;
 

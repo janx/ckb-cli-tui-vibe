@@ -1,5 +1,6 @@
 use std::io::Stdout;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -85,14 +86,16 @@ impl TuiApp {
 
     pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<(), String> {
         let (event_tx, mut event_rx) = mpsc::channel::<AppEvent>(100);
+        let shutdown = Arc::new(AtomicBool::new(false));
 
         let chain_state = Arc::clone(&self.chain_state);
         let rpc_url = self.config.get_url().to_string();
         let event_tx_clone = event_tx.clone();
+        let shutdown_chain = Arc::clone(&shutdown);
 
         std::thread::spawn(move || {
             let mut rpc_client = HttpRpcClient::new(rpc_url);
-            loop {
+            while !shutdown_chain.load(Ordering::Relaxed) {
                 if let Ok(state) = fetch_chain_state(&mut rpc_client) {
                     if let Ok(mut chain) = chain_state.write() {
                         *chain = state.clone();
@@ -103,17 +106,20 @@ impl TuiApp {
             }
         });
 
-        std::thread::spawn(move || loop {
-            if event::poll(Duration::from_millis(50)).unwrap_or(false) {
-                if let Ok(evt) = event::read() {
-                    let app_event = match evt {
-                        Event::Key(key) => AppEvent::Key(key),
-                        Event::Mouse(mouse) => AppEvent::Mouse(mouse),
-                        Event::Resize(w, h) => AppEvent::Resize(w, h),
-                        _ => continue,
-                    };
-                    if event_tx.blocking_send(app_event).is_err() {
-                        break;
+        let shutdown_event = Arc::clone(&shutdown);
+        std::thread::spawn(move || {
+            while !shutdown_event.load(Ordering::Relaxed) {
+                if event::poll(Duration::from_millis(50)).unwrap_or(false) {
+                    if let Ok(evt) = event::read() {
+                        let app_event = match evt {
+                            Event::Key(key) => AppEvent::Key(key),
+                            Event::Mouse(mouse) => AppEvent::Mouse(mouse),
+                            Event::Resize(w, h) => AppEvent::Resize(w, h),
+                            _ => continue,
+                        };
+                        if event_tx.blocking_send(app_event).is_err() {
+                            break;
+                        }
                     }
                 }
             }
@@ -136,6 +142,8 @@ impl TuiApp {
                 None => break,
             }
         }
+
+        shutdown.store(true, Ordering::Relaxed);
 
         if let Err(e) = self.command_state.save_history() {
             eprintln!("Warning: Failed to save command history: {}", e);

@@ -73,6 +73,7 @@ crossterm = { version = "0.28", features = ["event-stream"] }
 tui-textarea = "0.6"
 syntect = "5.2"
 throbber-widgets-tui = "0.7"
+unicode-width = "0.1"
 
 [dev-dependencies]
 rand = "0.7"

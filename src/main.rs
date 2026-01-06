@@ -235,7 +235,7 @@ pub fn get_version() -> Version {
 }
 
 pub fn build_cli<'a>(version_short: &'a str, version_long: &'a str) -> App<'a> {
-    App::new("ckb-cli")
+    let app = App::new("ckb-cli")
         .version(version_short)
         .long_version(version_long)
         .global_setting(AppSettings::ColoredHelp)
@@ -253,7 +253,6 @@ pub fn build_cli<'a>(version_short: &'a str, version_long: &'a str) -> App<'a> {
         .subcommand(SudtSubCommand::subcommand("sudt"))
         .subcommand(DeploySubCommand::subcommand("deploy"))
         .arg(
-
             Arg::with_name("url")
                 .long("url")
                 .takes_value(true)
@@ -295,12 +294,16 @@ You may also use some public available nodes, check the list of public nodes: ht
             Arg::with_name("classic")
                 .long("classic")
                 .about("Use classic rustyline-based REPL instead of modern TUI"),
-        )
-        .arg(
-            Arg::with_name("modern")
-                .long("modern")
-                .about("Use modern TUI interface (experimental)"),
-        )
+        );
+
+    #[cfg(unix)]
+    let app = app.arg(
+        Arg::with_name("modern")
+            .long("modern")
+            .about("Use modern TUI interface (experimental)"),
+    );
+
+    app
 }
 
 pub fn build_interactive() -> App<'static> {

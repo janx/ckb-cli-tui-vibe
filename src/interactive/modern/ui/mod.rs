@@ -1,6 +1,8 @@
 pub mod syntax;
 pub mod theme;
 
+use unicode_width::UnicodeWidthStr;
+
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
@@ -243,7 +245,7 @@ fn render_input(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
     frame.render_widget(input, area);
 
     frame.set_cursor_position((
-        area.x + app.command_state.input.chars().count() as u16 + 1,
+        area.x + app.command_state.input.width() as u16 + 1,
         area.y + 1,
     ));
 }

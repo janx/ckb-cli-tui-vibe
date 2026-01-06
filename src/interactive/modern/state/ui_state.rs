@@ -6,6 +6,13 @@ pub enum Pane {
     Sidebar,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Tab {
+    #[default]
+    Command,
+    Logs,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LayoutAreas {
     pub output: (u16, u16, u16, u16),
@@ -47,6 +54,8 @@ pub struct UiState {
     pub sidebar_width: u16,
     pub layout: LayoutAreas,
     pub max_output_scroll: usize,
+    pub current_tab: Tab,
+    pub logs_scroll: usize,
 }
 
 impl Default for UiState {
@@ -60,6 +69,8 @@ impl Default for UiState {
             sidebar_width: 25,
             layout: LayoutAreas::default(),
             max_output_scroll: 0,
+            current_tab: Tab::Command,
+            logs_scroll: 0,
         }
     }
 }

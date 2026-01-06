@@ -1,5 +1,6 @@
 pub mod completion;
 pub mod syntax;
+pub mod tabs;
 pub mod theme;
 
 use unicode_width::UnicodeWidthStr;
@@ -12,8 +13,8 @@ use ratatui::{
     Frame,
 };
 
-use super::app::TuiApp;
-use super::state::{ChainState, LayoutAreas, Pane};
+use super::app::{LogLevel, TuiApp};
+use super::state::{ChainState, LayoutAreas, Pane, Tab};
 use syntax::{CommandHighlighter, OutputHighlighter};
 use theme::Theme;
 
@@ -23,6 +24,7 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Min(10),
             Constraint::Length(3),
@@ -36,7 +38,7 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
             Constraint::Min(40),
             Constraint::Length(app.ui_state.sidebar_width),
         ])
-        .split(chunks[1]);
+        .split(chunks[2]);
 
     app.ui_state.layout = LayoutAreas {
         output: (
@@ -51,14 +53,24 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
             main_chunks[1].width,
             main_chunks[1].height,
         ),
-        input: (chunks[2].x, chunks[2].y, chunks[2].width, chunks[2].height),
+        input: (chunks[3].x, chunks[3].y, chunks[3].width, chunks[3].height),
     };
 
     render_status_bar(frame, chunks[0], app, chain_state, &theme);
-    render_output(frame, main_chunks[0], app, &theme);
+    tabs::render_tab_bar(frame, chunks[1], app.ui_state.current_tab, &theme);
+
+    match app.ui_state.current_tab {
+        Tab::Command => {
+            render_output(frame, main_chunks[0], app, &theme);
+        }
+        Tab::Logs => {
+            render_logs(frame, main_chunks[0], app, &theme);
+        }
+    }
+
     render_sidebar(frame, main_chunks[1], app, chain_state, &theme);
-    render_input(frame, chunks[2], app, &theme);
-    render_help_bar(frame, chunks[3], &theme);
+    render_input(frame, chunks[3], app, &theme);
+    render_help_bar(frame, chunks[4], &theme);
 
     if app.ui_state.show_completion && !app.current_completions.is_empty() {
         completion::render_completion_popup(
@@ -163,6 +175,84 @@ fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
         .wrap(Wrap { trim: false });
 
     frame.render_widget(output, area);
+}
+
+fn render_logs(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
+    let is_focused = app.ui_state.focused_pane == Pane::Output;
+    let border_style = theme.border_style(is_focused);
+
+    let mut lines: Vec<Line> = Vec::new();
+
+    if app.logs.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "No logs yet.",
+            Style::default().fg(theme.sidebar_text),
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Logs will appear here when commands are executed.",
+            Style::default().fg(theme.sidebar_text),
+        )));
+    } else {
+        for entry in app.logs.iter() {
+            let (level_str, level_style) = match entry.level {
+                LogLevel::Info => (
+                    "INFO ",
+                    Style::default()
+                        .fg(theme.highlight)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                LogLevel::Warn => (
+                    "WARN ",
+                    Style::default()
+                        .fg(theme.command_prompt)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                LogLevel::Error => (
+                    "ERROR",
+                    Style::default()
+                        .fg(theme.output_error)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                LogLevel::Debug => (
+                    "DEBUG",
+                    Style::default()
+                        .fg(theme.sidebar_text)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            };
+
+            let timestamp = format_timestamp_utc(entry.timestamp);
+
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("[{}] ", timestamp),
+                    Style::default().fg(theme.border_unfocused),
+                ),
+                Span::styled(level_str, level_style),
+                Span::raw(" "),
+                Span::styled(&entry.message, Style::default().fg(theme.foreground)),
+            ]));
+        }
+    }
+
+    let logs = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .title(" Logs ")
+                .borders(Borders::ALL)
+                .border_style(border_style),
+        )
+        .wrap(Wrap { trim: false });
+
+    frame.render_widget(logs, area);
+}
+
+fn format_timestamp_utc(timestamp: u64) -> String {
+    let hours = (timestamp / 3600) % 24;
+    let minutes = (timestamp / 60) % 60;
+    let seconds = timestamp % 60;
+    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
 
 fn render_sidebar(
@@ -288,7 +378,7 @@ fn render_help_bar(frame: &mut Frame, area: Rect, theme: &Theme) {
 
 fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
     let popup_width = 50u16.min(frame.area().width - 4);
-    let popup_height = 18u16.min(frame.area().height - 4);
+    let popup_height = 19u16.min(frame.area().height - 4);
 
     let popup_x = (frame.area().width - popup_width) / 2;
     let popup_y = (frame.area().height - popup_height) / 2;
@@ -335,6 +425,10 @@ fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
         Line::from(vec![
             Span::styled("F1/F2/F3    ", Style::default().fg(theme.json_key)),
             Span::raw("Focus Sidebar/Output/Input"),
+        ]),
+        Line::from(vec![
+            Span::styled("Alt+1/2     ", Style::default().fg(theme.json_key)),
+            Span::raw("Switch to Command/Logs tab"),
         ]),
         Line::from(""),
         Line::from(Span::styled("Mouse", theme.title_style())),

@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::io::Stdout;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,10 +28,56 @@ use crate::utils::{
 };
 
 use super::event::AppEvent;
-use super::state::{ChainState, CommandState, Completion, Pane, TuiCompleter, UiState};
+use super::state::{ChainState, CommandState, Completion, Pane, Tab, TuiCompleter, UiState};
 use super::ui;
 
 const ENV_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
+const MAX_LOG_ENTRIES: usize = 1000;
+
+#[derive(Debug, Clone)]
+pub enum LogLevel {
+    Info,
+    Warn,
+    Error,
+    Debug,
+}
+
+#[derive(Debug, Clone)]
+pub struct LogEntry {
+    pub timestamp: u64,
+    pub level: LogLevel,
+    pub message: String,
+}
+
+impl LogEntry {
+    pub fn new(level: LogLevel, message: impl Into<String>) -> Self {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        Self {
+            timestamp,
+            level,
+            message: message.into(),
+        }
+    }
+
+    pub fn info(message: impl Into<String>) -> Self {
+        Self::new(LogLevel::Info, message)
+    }
+
+    pub fn warn(message: impl Into<String>) -> Self {
+        Self::new(LogLevel::Warn, message)
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self::new(LogLevel::Error, message)
+    }
+
+    pub fn debug(message: impl Into<String>) -> Self {
+        Self::new(LogLevel::Debug, message)
+    }
+}
 
 #[allow(dead_code)]
 pub struct TuiApp {
@@ -54,6 +101,7 @@ pub struct TuiApp {
     pub history_search_query: String,
     pub history_search_matches: Vec<String>,
     pub history_search_index: usize,
+    pub logs: VecDeque<LogEntry>,
 }
 
 impl TuiApp {
@@ -94,10 +142,23 @@ impl TuiApp {
             history_search_query: String::new(),
             history_search_matches: Vec::new(),
             history_search_index: 0,
+            logs: VecDeque::new(),
         })
     }
 
+    pub fn add_log(&mut self, entry: LogEntry) {
+        if self.logs.len() >= MAX_LOG_ENTRIES {
+            self.logs.pop_front();
+        }
+        self.logs.push_back(entry);
+    }
+
     pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<(), String> {
+        self.add_log(LogEntry::info(format!(
+            "CKB CLI Modern TUI started (RPC: {})",
+            self.config.get_url()
+        )));
+
         let (event_tx, mut event_rx) = mpsc::channel::<AppEvent>(100);
         let shutdown = Arc::new(AtomicBool::new(false));
 
@@ -147,7 +208,15 @@ impl TuiApp {
 
             match event_rx.blocking_recv() {
                 Some(AppEvent::Key(key)) => self.handle_key_event(key),
-                Some(AppEvent::ChainUpdate(_)) => {}
+                Some(AppEvent::ChainUpdate(state)) => {
+                    let prev_height = chain_state.height;
+                    if state.height != prev_height && prev_height > 0 {
+                        self.add_log(LogEntry::debug(format!(
+                            "Chain updated: height {} → {} (epoch {})",
+                            prev_height, state.height, state.epoch
+                        )));
+                    }
+                }
                 Some(AppEvent::Resize(_, _)) => {}
                 Some(AppEvent::Mouse(mouse)) => self.handle_mouse_event(mouse),
                 Some(AppEvent::Tick) => {}
@@ -247,6 +316,18 @@ impl TuiApp {
             }
             (_, KeyCode::F(3)) => {
                 self.ui_state.focused_pane = Pane::Input;
+            }
+            (KeyModifiers::ALT, KeyCode::Char('1')) => {
+                self.ui_state.current_tab = Tab::Command;
+            }
+            (KeyModifiers::ALT, KeyCode::Char('2')) => {
+                self.ui_state.current_tab = Tab::Logs;
+            }
+            (KeyModifiers::CONTROL, KeyCode::Tab) => {
+                self.ui_state.current_tab = match self.ui_state.current_tab {
+                    Tab::Command => Tab::Logs,
+                    Tab::Logs => Tab::Command,
+                };
             }
             (_, KeyCode::Char('?')) => {
                 self.ui_state.show_help = true;
@@ -404,11 +485,22 @@ impl TuiApp {
         self.command_state.add_to_history(input.clone());
         self.command_state.input.clear();
 
+        self.add_log(LogEntry::info(format!("Executing: {}", input)));
+
         match self.handle_command(&input) {
             Ok((output, success)) => {
+                if success {
+                    self.add_log(LogEntry::info(format!(
+                        "Command completed successfully ({} bytes output)",
+                        output.len()
+                    )));
+                } else {
+                    self.add_log(LogEntry::warn("Command returned with warning"));
+                }
                 self.command_state.add_output(input, output, success);
             }
             Err(err) => {
+                self.add_log(LogEntry::error(format!("Command failed: {}", err)));
                 self.command_state.add_output(input, err, false);
             }
         }

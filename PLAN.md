@@ -1,7 +1,7 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 2 Complete (Weeks 4-6)  
+**Status**: Phase 3 In Progress (Week 7 Complete)  
 **Target**: ckb-cli v2.0.0  
 **Platform**: Unix-first (Linux/macOS), Windows in Phase 4
 
@@ -485,17 +485,27 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 
 **Goal**: Advanced features for power users
 
-#### Week 7: Tabs & Views
-- [ ] Implement tab system: `[Command] [Logs] [Watch]`
-- [ ] Build `LogsView` for RPC call logs (intercept RPC client calls)
-- [ ] Create `WatchView` for auto-refreshing commands (e.g., watch balance)
-- [ ] Tab navigation (Ctrl+Tab, Alt+1/2/3)
-- [ ] Per-tab state management
+#### Week 7: Tabs & Views ✅ COMPLETED
+- [x] Implement tab system: `[Command] [Logs]`
+- [x] Build `LogsView` for command execution logs
+- [ ] Create `WatchView` for auto-refreshing commands (deferred to Week 8)
+- [x] Tab navigation (Ctrl+Tab, Alt+1/Alt+2)
+- [x] Per-tab state management (Tab enum, logs_scroll in UiState)
+- [x] LogEntry struct with level, timestamp, message
+- [x] Automatic logging of command execution and chain updates
 
 **Deliverables**:
-- `src/interactive/modern/ui/widgets/tabs.rs`
-- `src/interactive/modern/ui/widgets/logs_view.rs`
-- `src/interactive/modern/ui/widgets/watch_view.rs`
+- `src/interactive/modern/ui/tabs.rs` ✅
+- `src/interactive/modern/app.rs` - LogEntry, log buffer, add_log() ✅
+- `src/interactive/modern/ui/mod.rs` - render_logs(), tab bar integration ✅
+
+**Implementation Notes**:
+- Tab bar shows between status bar and main content
+- Command tab shows command output (default view)
+- Logs tab shows timestamped log entries with level indicators
+- Logs include: startup, command execution, chain state updates
+- Alt+1/Alt+2 for direct tab switch, Ctrl+Tab to cycle
+- Log buffer limited to 1000 entries (FIFO)
 
 #### Week 8: Command Palette & Search
 - [ ] Build fuzzy command palette (Ctrl+P)

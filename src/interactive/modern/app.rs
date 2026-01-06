@@ -30,6 +30,7 @@ use crate::utils::{
 use super::event::AppEvent;
 use super::state::{ChainState, CommandState, Completion, Pane, Tab, TuiCompleter, UiState};
 use super::ui;
+use super::ui::command_palette::{extract_commands, filter_commands, PaletteEntry};
 
 const ENV_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
 const MAX_LOG_ENTRIES: usize = 1000;
@@ -102,6 +103,7 @@ pub struct TuiApp {
     pub history_search_matches: Vec<String>,
     pub history_search_index: usize,
     pub logs: VecDeque<LogEntry>,
+    pub palette_commands: Vec<PaletteEntry>,
 }
 
 impl TuiApp {
@@ -120,6 +122,7 @@ impl TuiApp {
         let parser = build_interactive();
         let env_regex = Regex::new(ENV_PATTERN).map_err(|e| e.to_string())?;
         let completer = TuiCompleter::new(&parser);
+        let palette_commands = extract_commands(&parser);
 
         Ok(Self {
             ui_state: UiState::default(),
@@ -143,6 +146,7 @@ impl TuiApp {
             history_search_matches: Vec::new(),
             history_search_index: 0,
             logs: VecDeque::new(),
+            palette_commands,
         })
     }
 
@@ -239,6 +243,16 @@ impl TuiApp {
             return;
         }
 
+        if self.ui_state.show_palette {
+            self.handle_palette_key(key);
+            return;
+        }
+
+        if self.ui_state.output_search_mode {
+            self.handle_output_search_key(key);
+            return;
+        }
+
         if self.ui_state.show_completion {
             match key.code {
                 KeyCode::Tab => {
@@ -308,6 +322,9 @@ impl TuiApp {
             (KeyModifiers::CONTROL, KeyCode::Char('r')) => {
                 self.start_history_search();
             }
+            (KeyModifiers::CONTROL, KeyCode::Char('p')) => {
+                self.open_palette();
+            }
             (_, KeyCode::F(1)) => {
                 self.ui_state.focused_pane = Pane::Sidebar;
             }
@@ -331,6 +348,9 @@ impl TuiApp {
             }
             (_, KeyCode::Char('?')) => {
                 self.ui_state.show_help = true;
+            }
+            (_, KeyCode::Char('/')) if self.ui_state.focused_pane == Pane::Output => {
+                self.start_output_search();
             }
             (_, KeyCode::Tab) => {
                 self.trigger_completion();
@@ -410,6 +430,73 @@ impl TuiApp {
             .cloned()
             .collect();
         self.history_search_index = 0;
+    }
+
+    fn open_palette(&mut self) {
+        self.ui_state.show_palette = true;
+        self.ui_state.palette_query.clear();
+        self.ui_state.palette_index = 0;
+    }
+
+    fn handle_palette_key(&mut self, key: event::KeyEvent) {
+        let filtered = filter_commands(&self.palette_commands, &self.ui_state.palette_query);
+
+        match (key.modifiers, key.code) {
+            (KeyModifiers::CONTROL, KeyCode::Char('c')) | (_, KeyCode::Esc) => {
+                self.ui_state.show_palette = false;
+                self.ui_state.palette_query.clear();
+            }
+            (_, KeyCode::Up) => {
+                if self.ui_state.palette_index > 0 {
+                    self.ui_state.palette_index -= 1;
+                }
+            }
+            (_, KeyCode::Down) => {
+                if self.ui_state.palette_index < filtered.len().saturating_sub(1) {
+                    self.ui_state.palette_index += 1;
+                }
+            }
+            (_, KeyCode::Enter) => {
+                if let Some(entry) = filtered.get(self.ui_state.palette_index) {
+                    self.command_state.input = format!("{} ", entry.command);
+                }
+                self.ui_state.show_palette = false;
+                self.ui_state.palette_query.clear();
+            }
+            (_, KeyCode::Char(c)) => {
+                self.ui_state.palette_query.push(c);
+                self.ui_state.palette_index = 0;
+            }
+            (_, KeyCode::Backspace) => {
+                self.ui_state.palette_query.pop();
+                self.ui_state.palette_index = 0;
+            }
+            _ => {}
+        }
+    }
+
+    fn start_output_search(&mut self) {
+        self.ui_state.output_search_mode = true;
+        self.ui_state.output_search_query.clear();
+    }
+
+    fn handle_output_search_key(&mut self, key: event::KeyEvent) {
+        match (key.modifiers, key.code) {
+            (KeyModifiers::CONTROL, KeyCode::Char('c')) | (_, KeyCode::Esc) => {
+                self.ui_state.output_search_mode = false;
+                self.ui_state.output_search_query.clear();
+            }
+            (_, KeyCode::Enter) => {
+                self.ui_state.output_search_mode = false;
+            }
+            (_, KeyCode::Char(c)) => {
+                self.ui_state.output_search_query.push(c);
+            }
+            (_, KeyCode::Backspace) => {
+                self.ui_state.output_search_query.pop();
+            }
+            _ => {}
+        }
     }
 
     fn trigger_completion(&mut self) {

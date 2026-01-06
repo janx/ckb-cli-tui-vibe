@@ -1,7 +1,7 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 3 In Progress (Week 7 Complete)  
+**Status**: Phase 3 In Progress (Week 8 Core Complete)  
 **Target**: ckb-cli v2.0.0  
 **Platform**: Unix-first (Linux/macOS), Windows in Phase 4
 
@@ -507,16 +507,23 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 - Alt+1/Alt+2 for direct tab switch, Ctrl+Tab to cycle
 - Log buffer limited to 1000 entries (FIFO)
 
-#### Week 8: Command Palette & Search
-- [ ] Build fuzzy command palette (Ctrl+P)
-- [ ] Implement output search (`/` in output pane)
-- [ ] Add copy-to-clipboard support (system clipboard via `arboard`)
-- [ ] Multi-line command editing (Ctrl+Enter for newline)
-- [ ] Command templates/snippets
+#### Week 8: Command Palette & Search ✅ COMPLETED (Core Features)
+- [x] Build fuzzy command palette (Ctrl+P)
+- [x] Implement output search (`/` in output pane)
+- [ ] Add copy-to-clipboard support (deferred - requires arboard dep)
+- [ ] Multi-line command editing (deferred - complexity vs value)
+- [ ] Command templates/snippets (deferred)
 
 **Deliverables**:
-- `src/interactive/modern/ui/widgets/command_palette.rs`
-- Enhanced `output_viewer.rs` with search
+- `src/interactive/modern/ui/command_palette.rs` ✅
+- Output search with match highlighting ✅
+
+**Implementation Notes**:
+- Command palette shows all commands + subcommands with fuzzy filtering
+- Ctrl+P opens, type to filter, Enter to select, Esc to close
+- Output search via `/` when Output pane is focused
+- Search highlights matches with inverted colors (yellow bg)
+- Query persists after closing search mode for continued highlighting
 
 #### Week 9: Session Management
 - [ ] Save/restore session state to `~/.ckb-cli/session.json`

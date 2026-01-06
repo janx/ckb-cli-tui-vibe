@@ -1,3 +1,4 @@
+pub mod command_palette;
 pub mod completion;
 pub mod syntax;
 pub mod tabs;
@@ -90,6 +91,18 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
         );
     }
 
+    if app.ui_state.show_palette {
+        let filtered =
+            command_palette::filter_commands(&app.palette_commands, &app.ui_state.palette_query);
+        command_palette::render_command_palette(
+            frame,
+            &app.ui_state.palette_query,
+            &filtered,
+            app.ui_state.palette_index,
+            &theme,
+        );
+    }
+
     if app.ui_state.show_help {
         render_help_overlay(frame, &theme);
     }
@@ -123,6 +136,7 @@ fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
     let is_focused = app.ui_state.focused_pane == Pane::Output;
     let border_style = theme.border_style(is_focused);
     let highlighter = OutputHighlighter::new(theme);
+    let search_query = &app.ui_state.output_search_query;
 
     let mut lines: Vec<Line> = Vec::new();
 
@@ -133,8 +147,14 @@ fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
         ]));
 
         if entry.success {
-            let highlighted = highlighter.highlight_output(&entry.result);
-            lines.extend(highlighted);
+            if !search_query.is_empty() {
+                for line in entry.result.lines() {
+                    lines.push(highlight_search_matches(line, search_query, theme));
+                }
+            } else {
+                let highlighted = highlighter.highlight_output(&entry.result);
+                lines.extend(highlighted);
+            }
         } else {
             for line in entry.result.lines() {
                 lines.push(Line::from(Span::styled(
@@ -165,10 +185,18 @@ fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
         )));
     }
 
+    let title = if app.ui_state.output_search_mode {
+        format!(" Output - Search: {}█ ", search_query)
+    } else if !search_query.is_empty() {
+        format!(" Output - [{}] (/ to search, Esc to clear) ", search_query)
+    } else {
+        " Output (/ to search) ".to_string()
+    };
+
     let output = Paragraph::new(lines)
         .block(
             Block::default()
-                .title(" Output ")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(border_style),
         )
@@ -253,6 +281,44 @@ fn format_timestamp_utc(timestamp: u64) -> String {
     let minutes = (timestamp / 60) % 60;
     let seconds = timestamp % 60;
     format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+}
+
+fn highlight_search_matches<'a>(line: &'a str, query: &str, theme: &Theme) -> Line<'a> {
+    let query_lower = query.to_lowercase();
+    let line_lower = line.to_lowercase();
+
+    let mut spans = Vec::new();
+    let mut last_end = 0;
+
+    for (start, _) in line_lower.match_indices(&query_lower) {
+        if start > last_end {
+            spans.push(Span::styled(
+                &line[last_end..start],
+                Style::default().fg(theme.foreground),
+            ));
+        }
+        spans.push(Span::styled(
+            &line[start..start + query.len()],
+            Style::default()
+                .fg(theme.background)
+                .bg(theme.command_prompt)
+                .add_modifier(Modifier::BOLD),
+        ));
+        last_end = start + query.len();
+    }
+
+    if last_end < line.len() {
+        spans.push(Span::styled(
+            &line[last_end..],
+            Style::default().fg(theme.foreground),
+        ));
+    }
+
+    if spans.is_empty() {
+        Line::from(Span::styled(line, Style::default().fg(theme.foreground)))
+    } else {
+        Line::from(spans)
+    }
 }
 
 fn render_sidebar(
@@ -370,7 +436,7 @@ fn render_input(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
 }
 
 fn render_help_bar(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let help_text = " Ctrl+C Exit │ ↑/↓ History │ Ctrl+R Search │ Tab Complete │ ? Help ";
+    let help_text = " Ctrl+C Exit │ Ctrl+P Palette │ Ctrl+R Search │ Tab Complete │ ? Help ";
 
     let help_bar = Paragraph::new(help_text).style(theme.help_bar_style());
     frame.render_widget(help_bar, area);
@@ -378,7 +444,7 @@ fn render_help_bar(frame: &mut Frame, area: Rect, theme: &Theme) {
 
 fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
     let popup_width = 50u16.min(frame.area().width - 4);
-    let popup_height = 19u16.min(frame.area().height - 4);
+    let popup_height = 21u16.min(frame.area().height - 4);
 
     let popup_x = (frame.area().width - popup_width) / 2;
     let popup_y = (frame.area().height - popup_height) / 2;
@@ -401,6 +467,10 @@ fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
         Line::from(vec![
             Span::styled("Ctrl+R      ", Style::default().fg(theme.json_key)),
             Span::raw("Search history"),
+        ]),
+        Line::from(vec![
+            Span::styled("Ctrl+P      ", Style::default().fg(theme.json_key)),
+            Span::raw("Command palette"),
         ]),
         Line::from(vec![
             Span::styled("Tab         ", Style::default().fg(theme.json_key)),
@@ -429,6 +499,10 @@ fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
         Line::from(vec![
             Span::styled("Alt+1/2     ", Style::default().fg(theme.json_key)),
             Span::raw("Switch to Command/Logs tab"),
+        ]),
+        Line::from(vec![
+            Span::styled("/           ", Style::default().fg(theme.json_key)),
+            Span::raw("Search in output (when focused)"),
         ]),
         Line::from(""),
         Line::from(Span::styled("Mouse", theme.title_style())),

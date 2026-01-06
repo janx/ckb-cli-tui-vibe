@@ -56,6 +56,11 @@ pub struct UiState {
     pub max_output_scroll: usize,
     pub current_tab: Tab,
     pub logs_scroll: usize,
+    pub show_palette: bool,
+    pub palette_query: String,
+    pub palette_index: usize,
+    pub output_search_mode: bool,
+    pub output_search_query: String,
 }
 
 impl Default for UiState {
@@ -71,6 +76,11 @@ impl Default for UiState {
             max_output_scroll: 0,
             current_tab: Tab::Command,
             logs_scroll: 0,
+            show_palette: false,
+            palette_query: String::new(),
+            palette_index: 0,
+            output_search_mode: false,
+            output_search_query: String::new(),
         }
     }
 }

@@ -2,7 +2,6 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::interactive::modern::state::Pane;
 
-#[allow(dead_code)]
 pub fn handle_output_scroll(focused_pane: Pane, output_scroll: &mut usize, key: KeyEvent) {
     if focused_pane != Pane::Output {
         return;
@@ -23,6 +22,9 @@ pub fn handle_output_scroll(focused_pane: Pane, output_scroll: &mut usize, key: 
         }
         KeyCode::Home | KeyCode::Char('g') => {
             *output_scroll = 0;
+        }
+        KeyCode::End | KeyCode::Char('G') => {
+            *output_scroll = usize::MAX;
         }
         _ => {}
     }

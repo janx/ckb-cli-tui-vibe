@@ -116,7 +116,18 @@ pub fn render_history_search(
 
     lines.push(Line::from(""));
 
-    for (i, entry) in matches.iter().enumerate().take(MAX_VISIBLE_COMPLETIONS) {
+    let scroll_offset = if selected_index >= MAX_VISIBLE_COMPLETIONS {
+        selected_index - MAX_VISIBLE_COMPLETIONS + 1
+    } else {
+        0
+    };
+
+    for (i, entry) in matches
+        .iter()
+        .enumerate()
+        .skip(scroll_offset)
+        .take(MAX_VISIBLE_COMPLETIONS)
+    {
         let is_selected = i == selected_index;
         let style = if is_selected {
             Style::default()

@@ -132,7 +132,7 @@ fn render_status_bar(
     frame.render_widget(status_bar, area);
 }
 
-fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
+fn render_output(frame: &mut Frame, area: Rect, app: &mut TuiApp, theme: &Theme) {
     let is_focused = app.ui_state.focused_pane == Pane::Output;
     let border_style = theme.border_style(is_focused);
     let highlighter = OutputHighlighter::new(theme);
@@ -193,7 +193,19 @@ fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
         " Output (/ to search) ".to_string()
     };
 
-    let output = Paragraph::new(lines)
+    let visible_height = area.height.saturating_sub(2) as usize;
+    let total_lines = lines.len();
+
+    app.ui_state.max_output_scroll = total_lines.saturating_sub(visible_height);
+    let scroll_offset = app
+        .ui_state
+        .output_scroll
+        .min(app.ui_state.max_output_scroll);
+    app.ui_state.output_scroll = scroll_offset;
+
+    let visible_lines: Vec<Line> = lines.into_iter().skip(scroll_offset).collect();
+
+    let output = Paragraph::new(visible_lines)
         .block(
             Block::default()
                 .title(title)
@@ -205,7 +217,7 @@ fn render_output(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
     frame.render_widget(output, area);
 }
 
-fn render_logs(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
+fn render_logs(frame: &mut Frame, area: Rect, app: &mut TuiApp, theme: &Theme) {
     let is_focused = app.ui_state.focused_pane == Pane::Output;
     let border_style = theme.border_style(is_focused);
 
@@ -264,7 +276,16 @@ fn render_logs(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
         }
     }
 
-    let logs = Paragraph::new(lines)
+    let visible_height = area.height.saturating_sub(2) as usize;
+    let total_lines = lines.len();
+
+    let max_logs_scroll = total_lines.saturating_sub(visible_height);
+    let scroll_offset = app.ui_state.logs_scroll.min(max_logs_scroll);
+    app.ui_state.logs_scroll = scroll_offset;
+
+    let visible_lines: Vec<Line> = lines.into_iter().skip(scroll_offset).collect();
+
+    let logs = Paragraph::new(visible_lines)
         .block(
             Block::default()
                 .title(" Logs ")

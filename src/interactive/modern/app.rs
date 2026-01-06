@@ -23,16 +23,17 @@ use crate::utils::{
     config::GlobalConfig,
     genesis_info::GenesisInfo,
     other::{get_genesis_info, get_network_type},
-    printer::{ColorWhen, OutputFormat, Printable},
+    printer::{OutputFormat, Printable},
     rpc::{HttpRpcClient, RawHttpRpcClient},
 };
 
-use super::event::AppEvent;
+use super::event::{handle_output_scroll, AppEvent};
 use super::state::{ChainState, CommandState, Completion, Pane, Tab, TuiCompleter, UiState};
 use super::ui;
 use super::ui::command_palette::{extract_commands, filter_commands, PaletteEntry};
 
 const ENV_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
+const ANSI_ESCAPE_PATTERN: &str = r"\x1b\[[0-9;]*[a-zA-Z]";
 const MAX_LOG_ENTRIES: usize = 1000;
 
 #[derive(Debug, Clone)]
@@ -96,6 +97,7 @@ pub struct TuiApp {
     parser: clap::App<'static>,
     genesis_info: Option<GenesisInfo>,
     env_regex: Regex,
+    ansi_regex: Regex,
     completer: TuiCompleter,
     pub current_completions: Vec<Completion>,
     pub history_search_mode: bool,
@@ -121,6 +123,7 @@ impl TuiApp {
 
         let parser = build_interactive();
         let env_regex = Regex::new(ENV_PATTERN).map_err(|e| e.to_string())?;
+        let ansi_regex = Regex::new(ANSI_ESCAPE_PATTERN).map_err(|e| e.to_string())?;
         let completer = TuiCompleter::new(&parser);
         let palette_commands = extract_commands(&parser);
 
@@ -139,6 +142,7 @@ impl TuiApp {
             parser,
             genesis_info: None,
             env_regex,
+            ansi_regex,
             completer,
             current_completions: Vec::new(),
             history_search_mode: false,
@@ -155,6 +159,11 @@ impl TuiApp {
             self.logs.pop_front();
         }
         self.logs.push_back(entry);
+        self.ui_state.logs_scroll = usize::MAX;
+    }
+
+    fn strip_ansi(&self, s: &str) -> String {
+        self.ansi_regex.replace_all(s, "").to_string()
     }
 
     pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<(), String> {
@@ -362,17 +371,35 @@ impl TuiApp {
             (_, KeyCode::Enter) => {
                 self.execute_command();
             }
-            (_, KeyCode::Char(c)) => {
+            (_, KeyCode::Char(c)) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.input.push(c);
             }
-            (_, KeyCode::Backspace) => {
+            (_, KeyCode::Backspace) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.input.pop();
             }
-            (_, KeyCode::Up) => {
+            (_, KeyCode::Up) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.navigate_history_up();
             }
-            (_, KeyCode::Down) => {
+            (_, KeyCode::Down) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.navigate_history_down();
+            }
+            (_, KeyCode::Up)
+            | (_, KeyCode::Down)
+            | (_, KeyCode::PageUp)
+            | (_, KeyCode::PageDown)
+            | (_, KeyCode::Home)
+            | (_, KeyCode::End)
+            | (_, KeyCode::Char('j'))
+            | (_, KeyCode::Char('k'))
+            | (_, KeyCode::Char('g'))
+            | (_, KeyCode::Char('G'))
+                if self.ui_state.focused_pane == Pane::Output =>
+            {
+                handle_output_scroll(
+                    self.ui_state.focused_pane,
+                    &mut self.ui_state.output_scroll,
+                    key,
+                );
             }
             _ => {}
         }
@@ -627,21 +654,25 @@ impl TuiApp {
 
         match self.handle_command(&input) {
             Ok((output, success)) => {
+                let clean_output = self.strip_ansi(&output);
                 if success {
                     self.add_log(LogEntry::info(format!(
                         "Command completed successfully ({} bytes output)",
-                        output.len()
+                        clean_output.len()
                     )));
                 } else {
                     self.add_log(LogEntry::warn("Command returned with warning"));
                 }
-                self.command_state.add_output(input, output, success);
+                self.command_state.add_output(input, clean_output, success);
             }
             Err(err) => {
-                self.add_log(LogEntry::error(format!("Command failed: {}", err)));
-                self.command_state.add_output(input, err, false);
+                let clean_err = self.strip_ansi(&err);
+                self.add_log(LogEntry::error(format!("Command failed: {}", clean_err)));
+                self.command_state.add_output(input, clean_err, false);
             }
         }
+
+        self.ui_state.output_scroll = usize::MAX;
     }
 
     fn genesis_info(&mut self) -> Result<GenesisInfo, String> {
@@ -660,7 +691,7 @@ impl TuiApp {
         }
 
         let format = self.config.output_format();
-        let color = ColorWhen::new(self.config.color()).color();
+        let use_ansi_colors = false;
         let debug = self.config.debug();
 
         let current_cmd_name = &args[0];
@@ -674,7 +705,7 @@ impl TuiApp {
             let resp = self
                 .plugin_mgr
                 .sub_command(current_cmd_name.as_str(), rest_args)?;
-            return Ok((resp.render(format, color), true));
+            return Ok((resp.render(format, use_ansi_colors), true));
         }
 
         let parser = self.parser.clone();
@@ -717,12 +748,12 @@ impl TuiApp {
                 ("rpc", Some(sub_matches)) => {
                     let output = RpcSubCommand::new(&mut self.rpc_client, &mut self.raw_rpc_client)
                         .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("account", Some(sub_matches)) => {
                     let output = AccountSubCommand::new(&mut self.plugin_mgr, &mut self.key_store)
                         .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("mock-tx", Some(sub_matches)) => {
                     let genesis_info = self.genesis_info().ok();
@@ -732,28 +763,28 @@ impl TuiApp {
                         genesis_info,
                     )
                     .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("tx", Some(sub_matches)) => {
                     let genesis_info = self.genesis_info().ok();
                     let output =
                         TxSubCommand::new(&mut self.rpc_client, &mut self.plugin_mgr, genesis_info)
                             .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("util", Some(sub_matches)) => {
                     let output = UtilSubCommand::new(&mut self.rpc_client, &mut self.plugin_mgr)
                         .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("plugin", Some(sub_matches)) => {
                     let output =
                         PluginSubCommand::new(&mut self.plugin_mgr).process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("molecule", Some(sub_matches)) => {
                     let output = MoleculeSubCommand::new().process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("wallet", Some(sub_matches)) => {
                     let genesis_info = self.genesis_info()?;
@@ -763,7 +794,7 @@ impl TuiApp {
                         Some(genesis_info),
                     )
                     .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("dao", Some(sub_matches)) => {
                     let genesis_info = self.genesis_info()?;
@@ -773,7 +804,7 @@ impl TuiApp {
                         genesis_info,
                     )
                     .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("sudt", Some(sub_matches)) => {
                     let genesis_info = self.genesis_info()?;
@@ -783,7 +814,7 @@ impl TuiApp {
                         genesis_info,
                     )
                     .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 ("deploy", Some(sub_matches)) => {
                     let genesis_info = self.genesis_info()?;
@@ -793,7 +824,7 @@ impl TuiApp {
                         genesis_info,
                     )
                     .process(sub_matches, debug)?;
-                    Ok((output_to_string(&output, format, color), true))
+                    Ok((output_to_string(&output, format, use_ansi_colors), true))
                 }
                 _ => Ok((format!("Unknown command: {}", line), false)),
             },

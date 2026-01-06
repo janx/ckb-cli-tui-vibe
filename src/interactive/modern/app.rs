@@ -27,7 +27,7 @@ use crate::utils::{
 };
 
 use super::event::AppEvent;
-use super::state::{ChainState, CommandState, UiState};
+use super::state::{ChainState, CommandState, Completion, TuiCompleter, UiState};
 use super::ui;
 
 const ENV_PATTERN: &str = r"\$\{\s*(?P<key>\S+)\s*\}";
@@ -48,6 +48,12 @@ pub struct TuiApp {
     parser: clap::App<'static>,
     genesis_info: Option<GenesisInfo>,
     env_regex: Regex,
+    completer: TuiCompleter,
+    pub current_completions: Vec<Completion>,
+    pub history_search_mode: bool,
+    pub history_search_query: String,
+    pub history_search_matches: Vec<String>,
+    pub history_search_index: usize,
 }
 
 impl TuiApp {
@@ -65,6 +71,7 @@ impl TuiApp {
 
         let parser = build_interactive();
         let env_regex = Regex::new(ENV_PATTERN).map_err(|e| e.to_string())?;
+        let completer = TuiCompleter::new(&parser);
 
         Ok(Self {
             ui_state: UiState::default(),
@@ -81,6 +88,12 @@ impl TuiApp {
             parser,
             genesis_info: None,
             env_regex,
+            completer,
+            current_completions: Vec::new(),
+            history_search_mode: false,
+            history_search_query: String::new(),
+            history_search_matches: Vec::new(),
+            history_search_index: 0,
         })
     }
 
@@ -153,12 +166,72 @@ impl TuiApp {
     }
 
     fn handle_key_event(&mut self, key: event::KeyEvent) {
+        if self.history_search_mode {
+            self.handle_history_search_key(key);
+            return;
+        }
+
+        if self.ui_state.show_completion {
+            match key.code {
+                KeyCode::Tab => {
+                    if !self.current_completions.is_empty() {
+                        self.ui_state.completion_index =
+                            (self.ui_state.completion_index + 1) % self.current_completions.len();
+                    }
+                    return;
+                }
+                KeyCode::BackTab => {
+                    if !self.current_completions.is_empty() {
+                        if self.ui_state.completion_index == 0 {
+                            self.ui_state.completion_index = self.current_completions.len() - 1;
+                        } else {
+                            self.ui_state.completion_index -= 1;
+                        }
+                    }
+                    return;
+                }
+                KeyCode::Enter => {
+                    self.accept_completion();
+                    return;
+                }
+                KeyCode::Esc => {
+                    self.ui_state.show_completion = false;
+                    self.current_completions.clear();
+                    return;
+                }
+                KeyCode::Up => {
+                    if self.ui_state.completion_index > 0 {
+                        self.ui_state.completion_index -= 1;
+                    }
+                    return;
+                }
+                KeyCode::Down => {
+                    if self.ui_state.completion_index
+                        < self.current_completions.len().saturating_sub(1)
+                    {
+                        self.ui_state.completion_index += 1;
+                    }
+                    return;
+                }
+                _ => {
+                    self.ui_state.show_completion = false;
+                    self.current_completions.clear();
+                }
+            }
+        }
+
         match (key.modifiers, key.code) {
             (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
                 self.should_quit = true;
             }
             (KeyModifiers::CONTROL, KeyCode::Char('l')) => {
                 self.command_state.clear_output();
+            }
+            (KeyModifiers::CONTROL, KeyCode::Char('r')) => {
+                self.start_history_search();
+            }
+            (_, KeyCode::Tab) => {
+                self.trigger_completion();
             }
             (_, KeyCode::Enter) => {
                 self.execute_command();
@@ -177,6 +250,90 @@ impl TuiApp {
             }
             _ => {}
         }
+    }
+
+    fn handle_history_search_key(&mut self, key: event::KeyEvent) {
+        match (key.modifiers, key.code) {
+            (KeyModifiers::CONTROL, KeyCode::Char('c')) | (_, KeyCode::Esc) => {
+                self.history_search_mode = false;
+                self.history_search_query.clear();
+                self.history_search_matches.clear();
+            }
+            (KeyModifiers::CONTROL, KeyCode::Char('r')) | (_, KeyCode::Up) => {
+                if !self.history_search_matches.is_empty() {
+                    self.history_search_index = (self.history_search_index + 1)
+                        .min(self.history_search_matches.len().saturating_sub(1));
+                }
+            }
+            (_, KeyCode::Down) => {
+                if self.history_search_index > 0 {
+                    self.history_search_index -= 1;
+                }
+            }
+            (_, KeyCode::Enter) => {
+                if let Some(selected) = self.history_search_matches.get(self.history_search_index) {
+                    self.command_state.input = selected.clone();
+                }
+                self.history_search_mode = false;
+                self.history_search_query.clear();
+                self.history_search_matches.clear();
+            }
+            (_, KeyCode::Char(c)) => {
+                self.history_search_query.push(c);
+                self.update_history_search();
+            }
+            (_, KeyCode::Backspace) => {
+                self.history_search_query.pop();
+                self.update_history_search();
+            }
+            _ => {}
+        }
+    }
+
+    fn start_history_search(&mut self) {
+        self.history_search_mode = true;
+        self.history_search_query.clear();
+        self.history_search_index = 0;
+        self.update_history_search();
+    }
+
+    fn update_history_search(&mut self) {
+        let query_lower = self.history_search_query.to_lowercase();
+        self.history_search_matches = self
+            .command_state
+            .history
+            .iter()
+            .rev()
+            .filter(|cmd| cmd.to_lowercase().contains(&query_lower))
+            .cloned()
+            .collect();
+        self.history_search_index = 0;
+    }
+
+    fn trigger_completion(&mut self) {
+        self.current_completions = self
+            .completer
+            .get_completions(&self.command_state.input, &self.parser);
+
+        if !self.current_completions.is_empty() {
+            self.ui_state.show_completion = true;
+            self.ui_state.completion_index = 0;
+        }
+    }
+
+    fn accept_completion(&mut self) {
+        if let Some(completion) = self.current_completions.get(self.ui_state.completion_index) {
+            let input = &self.command_state.input;
+            let word_start = input
+                .rfind(|c: char| c.is_whitespace())
+                .map(|i| i + 1)
+                .unwrap_or(0);
+
+            self.command_state.input =
+                format!("{}{} ", &input[..word_start], completion.replacement);
+        }
+        self.ui_state.show_completion = false;
+        self.current_completions.clear();
     }
 
     fn execute_command(&mut self) {

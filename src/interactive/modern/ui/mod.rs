@@ -1,3 +1,4 @@
+pub mod completion;
 pub mod syntax;
 pub mod theme;
 
@@ -33,6 +34,24 @@ pub fn render(frame: &mut Frame, app: &TuiApp, chain_state: &ChainState) {
     render_main_area(frame, chunks[1], app, chain_state, &theme);
     render_input(frame, chunks[2], app, &theme);
     render_help_bar(frame, chunks[3], &theme);
+
+    if app.ui_state.show_completion && !app.current_completions.is_empty() {
+        completion::render_completion_popup(
+            frame,
+            &app.current_completions,
+            app.ui_state.completion_index,
+            chunks[2],
+        );
+    }
+
+    if app.history_search_mode {
+        completion::render_history_search(
+            frame,
+            &app.history_search_query,
+            &app.history_search_matches,
+            app.history_search_index,
+        );
+    }
 }
 
 fn render_status_bar(
@@ -251,7 +270,7 @@ fn render_input(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
 }
 
 fn render_help_bar(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let help_text = " Ctrl+C Exit │ Ctrl+L Clear │ ↑/↓ History │ Enter Execute │ Tab Complete ";
+    let help_text = " Ctrl+C Exit │ Ctrl+L Clear │ ↑/↓ History │ Ctrl+R Search │ Tab Complete ";
 
     let help_bar = Paragraph::new(help_text).style(theme.help_bar_style());
     frame.render_widget(help_bar, area);

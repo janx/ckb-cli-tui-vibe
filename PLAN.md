@@ -1,7 +1,7 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 2 In Progress (Week 4 Complete)  
+**Status**: Phase 2 In Progress (Week 5 Complete)  
 **Target**: ckb-cli v2.0.0  
 **Platform**: Unix-first (Linux/macOS), Windows in Phase 4
 
@@ -440,17 +440,23 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 - Light theme defined but reserved for future use
 - Command input highlighting: keywords in teal, flags in blue, hex values in green
 
-#### Week 5: Completion & History
-- [ ] Port `CkbCompleter` logic to TUI context
-- [ ] Build `CompletionPopup` widget (dropdown below cursor)
-- [ ] Create `HistoryPanel` sidebar widget
-- [ ] Implement fuzzy history search (Ctrl+R)
-- [ ] Persist history to `~/.ckb-cli/history` (reuse existing format)
-- [ ] Navigate history with ↑/↓ keys
+#### Week 5: Completion & History ✅ COMPLETED
+- [x] Port `CkbCompleter` logic to TUI context
+- [x] Build `CompletionPopup` widget (dropdown below cursor)
+- [x] Create `HistoryPanel` sidebar widget (existing in sidebar)
+- [x] Implement fuzzy history search (Ctrl+R)
+- [x] Persist history to `~/.ckb-cli/history` (reuse existing format)
+- [x] Navigate history with ↑/↓ keys
 
 **Deliverables**:
-- `src/interactive/modern/ui/widgets/completion_popup.rs`
-- `src/interactive/modern/ui/widgets/history_panel.rs`
+- `src/interactive/modern/state/completer.rs` ✅
+- `src/interactive/modern/ui/completion.rs` ✅
+
+**Implementation Notes**:
+- TuiCompleter extracts completions from clap App with fuzzy matching
+- Tab cycles through completions, Enter accepts, Esc cancels
+- Ctrl+R opens centered history search popup with incremental filtering
+- Completion popup shows above input, color-coded (green=commands, cyan=flags, red=required)
 
 #### Week 6: Live Status & Interactivity
 - [ ] Build `StatusSidebar` widget

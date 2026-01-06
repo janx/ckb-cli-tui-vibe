@@ -283,39 +283,42 @@ fn format_timestamp_utc(timestamp: u64) -> String {
     format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
 }
 
-fn highlight_search_matches<'a>(line: &'a str, query: &str, theme: &Theme) -> Line<'a> {
+fn highlight_search_matches(line: &str, query: &str, theme: &Theme) -> Line<'static> {
     let query_lower = query.to_lowercase();
     let line_lower = line.to_lowercase();
 
     let mut spans = Vec::new();
     let mut last_end = 0;
 
-    for (start, _) in line_lower.match_indices(&query_lower) {
+    for (start, matched) in line_lower.match_indices(&query_lower) {
         if start > last_end {
             spans.push(Span::styled(
-                &line[last_end..start],
+                line[last_end..start].to_string(),
                 Style::default().fg(theme.foreground),
             ));
         }
         spans.push(Span::styled(
-            &line[start..start + query.len()],
+            line[start..start + matched.len()].to_string(),
             Style::default()
                 .fg(theme.background)
                 .bg(theme.command_prompt)
                 .add_modifier(Modifier::BOLD),
         ));
-        last_end = start + query.len();
+        last_end = start + matched.len();
     }
 
     if last_end < line.len() {
         spans.push(Span::styled(
-            &line[last_end..],
+            line[last_end..].to_string(),
             Style::default().fg(theme.foreground),
         ));
     }
 
     if spans.is_empty() {
-        Line::from(Span::styled(line, Style::default().fg(theme.foreground)))
+        Line::from(Span::styled(
+            line.to_string(),
+            Style::default().fg(theme.foreground),
+        ))
     } else {
         Line::from(spans)
     }
@@ -391,8 +394,9 @@ fn render_sidebar(
     )))
     .chain(std::iter::once(Line::from("")))
     .chain(app.command_state.history.iter().rev().take(10).map(|cmd| {
-        let display = if cmd.len() > 20 {
-            format!("{}...", &cmd[..17])
+        let display = if cmd.chars().count() > 20 {
+            let truncated: String = cmd.chars().take(17).collect();
+            format!("{}...", truncated)
         } else {
             cmd.clone()
         };

@@ -134,14 +134,16 @@ pub fn render_command_palette(
         };
 
         let prefix = if is_selected { "▶ " } else { "  " };
-        let cmd_display = if entry.command.len() > 25 {
-            format!("{}...", &entry.command[..22])
+        let cmd_display = if entry.command.chars().count() > 25 {
+            let truncated: String = entry.command.chars().take(22).collect();
+            format!("{}...", truncated)
         } else {
             format!("{:25}", entry.command)
         };
 
-        let desc_display = if entry.description.len() > 28 {
-            format!("{}...", &entry.description[..25])
+        let desc_display = if entry.description.chars().count() > 28 {
+            let truncated: String = entry.description.chars().take(25).collect();
+            format!("{}...", truncated)
         } else {
             entry.description.clone()
         };

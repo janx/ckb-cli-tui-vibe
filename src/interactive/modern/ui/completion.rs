@@ -127,8 +127,10 @@ pub fn render_history_search(
             Style::default().fg(Color::White)
         };
 
-        let display = if entry.len() > popup_width as usize - 4 {
-            format!("{}...", &entry[..popup_width as usize - 7])
+        let max_len = popup_width as usize - 4;
+        let display = if entry.chars().count() > max_len {
+            let truncated: String = entry.chars().take(max_len.saturating_sub(3)).collect();
+            format!("{}...", truncated)
         } else {
             entry.clone()
         };

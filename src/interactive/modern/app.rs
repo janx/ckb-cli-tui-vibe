@@ -385,10 +385,6 @@ impl TuiApp {
             }
             (_, KeyCode::Up)
             | (_, KeyCode::Down)
-            | (_, KeyCode::PageUp)
-            | (_, KeyCode::PageDown)
-            | (_, KeyCode::Home)
-            | (_, KeyCode::End)
             | (_, KeyCode::Char('j'))
             | (_, KeyCode::Char('k'))
             | (_, KeyCode::Char('g'))
@@ -400,6 +396,18 @@ impl TuiApp {
                     &mut self.ui_state.output_scroll,
                     key,
                 );
+            }
+            (_, KeyCode::Home) => {
+                self.ui_state.output_scroll = 0;
+            }
+            (_, KeyCode::End) => {
+                self.ui_state.output_scroll = usize::MAX;
+            }
+            (_, KeyCode::PageUp) => {
+                self.ui_state.output_scroll = self.ui_state.output_scroll.saturating_sub(10);
+            }
+            (_, KeyCode::PageDown) => {
+                self.ui_state.output_scroll = self.ui_state.output_scroll.saturating_add(10);
             }
             _ => {}
         }

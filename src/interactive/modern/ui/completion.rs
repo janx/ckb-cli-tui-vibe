@@ -31,19 +31,25 @@ pub fn render_completion_popup(
         + 4;
 
     let popup_x = input_area.x + 6;
-    let popup_y = if input_area.y >= popup_height {
-        input_area.y - popup_height
-    } else if frame.area().height > popup_height {
-        frame.area().height - popup_height - input_area.height - 1
+    let available_above = input_area.y;
+    let popup_y = if available_above >= popup_height {
+        available_above - popup_height
     } else {
         0
+    };
+
+    let max_height = available_above.min(popup_height);
+    let actual_height = if max_height < 3 {
+        popup_height
+    } else {
+        max_height
     };
 
     let popup_area = Rect::new(
         popup_x.min(frame.area().width.saturating_sub(popup_width)),
         popup_y,
         popup_width.min(frame.area().width.saturating_sub(popup_x)),
-        popup_height,
+        actual_height.min(frame.area().height.saturating_sub(popup_y)),
     );
 
     frame.render_widget(Clear, popup_area);

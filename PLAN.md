@@ -1,7 +1,7 @@
 # 🚀 Modern TUI REPL Implementation Plan
 
 **Project**: Upgrade ckb-cli interactive REPL to modern TUI  
-**Status**: Phase 1 Week 1 Complete  
+**Status**: Phase 1 Complete (Weeks 1-3)  
 **Target**: ckb-cli v2.0.0  
 **Platform**: Unix-first (Linux/macOS), Windows in Phase 4
 
@@ -383,31 +383,36 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 - Basic UI scaffold includes: status bar, output panel, sidebar, input area
 - History persistence implemented for modern mode
 
-#### Week 2: Event Loop & State
-- [ ] Implement `AppEvent` enum and event channel
-- [ ] Create `TuiApp` state structure
-- [ ] Build async event loop with `tokio::mpsc`
-- [ ] Background task for chain state polling
-- [ ] Graceful terminal restore on panic/exit
-- [ ] Basic keyboard event handling (Ctrl+C to quit)
+#### Week 2: Event Loop & State ✅ COMPLETED
+- [x] Implement `AppEvent` enum and event channel
+- [x] Create `TuiApp` state structure
+- [x] Build async event loop with `tokio::mpsc`
+- [x] Background task for chain state polling
+- [x] Graceful terminal restore on panic/exit
+- [x] Basic keyboard event handling (Ctrl+C to quit)
 
 **Deliverables**:
 - `src/interactive/modern/app.rs`
 - `src/interactive/modern/event/mod.rs`
 - `src/interactive/modern/state/mod.rs`
 
-#### Week 3: Basic Layout & Command Execution
-- [ ] Implement 3-pane layout (header, body, footer)
-- [ ] Integrate `tui-textarea` for command input
-- [ ] Connect input to existing command parser (reuse `InteractiveEnv::handle_command`)
-- [ ] Display output in scrollable panel
-- [ ] Test basic command execution flow
-- [ ] Handle command errors gracefully
+#### Week 3: Basic Layout & Command Execution ✅ COMPLETED
+- [x] Implement 3-pane layout (header, body, footer)
+- [x] Integrate `tui-textarea` for command input
+- [x] Connect input to existing command parser (reuse `InteractiveEnv::handle_command`)
+- [x] Display output in scrollable panel
+- [x] Test basic command execution flow
+- [x] Handle command errors gracefully
 
 **Deliverables**:
-- `src/interactive/modern/ui/layout.rs`
-- `src/interactive/modern/ui/widgets/command_input.rs`
-- `src/interactive/modern/ui/widgets/output_viewer.rs`
+- `src/interactive/modern/ui/mod.rs` (layout integrated)
+- `src/interactive/modern/app.rs` (command execution)
+
+**Implementation Notes**:
+- All subcommands (rpc, wallet, dao, account, etc.) now work in modern TUI
+- Background thread polls chain state every 2 seconds
+- Output formatted using existing YAML/JSON printer
+- Error handling displays errors in red in output panel
 
 **Milestone**: ✅ Can execute `rpc get_tip_header` in TUI and see formatted output
 

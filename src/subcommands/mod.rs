@@ -81,6 +81,31 @@ impl Output {
             eprintln!("{}", resp.render(OutputFormat::Yaml, color));
         }
     }
+
+    #[allow(dead_code)]
+    pub fn stdout_value(&self) -> Option<&serde_json::Value> {
+        self.stdout.as_ref()
+    }
+
+    #[allow(dead_code)]
+    pub fn stderr_value(&self) -> Option<&serde_json::Value> {
+        self.stderr.as_ref()
+    }
+
+    pub fn render(&self, format: OutputFormat, color: bool) -> String {
+        let mut parts = Vec::new();
+        if let Some(ref stdout) = self.stdout {
+            parts.push(stdout.render(format, color));
+        }
+        if let Some(ref stderr) = self.stderr {
+            parts.push(stderr.render(format, color));
+        }
+        if self.success && self.stdout.is_none() && self.stderr.is_none() {
+            let resp = serde_json::json!({ "status": "success" });
+            parts.push(resp.render(OutputFormat::Yaml, color));
+        }
+        parts.join("\n")
+    }
 }
 
 pub trait CliSubCommand {

@@ -9,7 +9,7 @@ use ckb_build_info::Version;
 use clap::crate_version;
 use clap::{App, AppSettings, Arg};
 
-use interactive::InteractiveEnv;
+use interactive::{start_interactive, InteractiveMode};
 use plugin::PluginManager;
 use subcommands::{
     AccountSubCommand, ApiServerSubCommand, CliSubCommand, DAOSubCommand, DeploySubCommand,
@@ -171,10 +171,18 @@ async fn main() -> Result<(), io::Error> {
             })
         }
         _ => {
-            if let Err(err) =
-                InteractiveEnv::from_config(ckb_cli_dir, config, plugin_mgr, key_store)
-                    .and_then(|mut env| env.start())
-            {
+            #[allow(unused_mut)]
+            let mut mode = InteractiveMode::default();
+
+            if matches.is_present("classic") {
+                mode = InteractiveMode::Classic;
+            }
+            #[cfg(unix)]
+            if matches.is_present("modern") {
+                mode = InteractiveMode::Modern;
+            }
+
+            if let Err(err) = start_interactive(mode, ckb_cli_dir, config, plugin_mgr, key_store) {
                 eprintln!("Process error: {}", err);
                 process::exit(1);
             }
@@ -282,6 +290,16 @@ You may also use some public available nodes, check the list of public nodes: ht
                 .long("local-only")
                 .global(true)
                 .about("This is a local only subcommand, do not check alerts and get network type"),
+        )
+        .arg(
+            Arg::with_name("classic")
+                .long("classic")
+                .about("Use classic rustyline-based REPL instead of modern TUI"),
+        )
+        .arg(
+            Arg::with_name("modern")
+                .long("modern")
+                .about("Use modern TUI interface (experimental)"),
         )
 }
 

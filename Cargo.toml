@@ -68,8 +68,11 @@ futures = "0.3"
 async-trait = "0.1.88"
 
 [target.'cfg(unix)'.dependencies]
-tui = "0.6.0"
-termion = "1.5"
+ratatui = { version = "0.28", features = ["crossterm"] }
+crossterm = { version = "0.28", features = ["event-stream"] }
+tui-textarea = "0.6"
+syntect = "5.2"
+throbber-widgets-tui = "0.7"
 
 [dev-dependencies]
 rand = "0.7"

@@ -549,17 +549,20 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 
 ### Phase 4: Polish & Ship (Weeks 10-11)
 
-**Goal**: Cross-platform support, documentation, release
+**Goal**: Cross-platform support, documentation, release, plus high-value deferred features
 
-#### Week 10: Windows Support
+#### Week 10: Platform Support & Deferred Features
 - [ ] Test on Windows Terminal
 - [ ] Fix Windows-specific issues (path separators, terminal setup)
 - [ ] Update CI for Windows builds
 - [ ] Cross-platform testing matrix
+- [ ] **Deferred from W7**: WatchView for auto-refreshing commands (e.g., watch balance)
+- [ ] **Deferred from W8**: Copy-to-clipboard support (add `arboard` dependency)
 
 **Deliverables**:
 - Windows compatibility fixes
 - CI/CD updates (`.github/workflows/ci.yaml`)
+- `src/interactive/modern/ui/watch_view.rs` (optional)
 
 #### Week 11: Documentation & Release
 - [ ] Write user guide with screenshots/GIFs
@@ -568,6 +571,7 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 - [ ] Write release notes and update `CHANGELOG.md`
 - [ ] Integration testing suite
 - [ ] Performance testing and optimization
+- [ ] Make modern TUI the default (remove `--modern` flag requirement)
 
 **Deliverables**:
 - `docs/TUI-Guide.md`
@@ -578,46 +582,66 @@ async fn event_loop(app: &mut TuiApp) -> Result<()> {
 
 ---
 
+### Post-v2.0: Future Enhancements
+
+**Deferred features for future releases** (lower priority or high complexity):
+
+| Feature | Deferred From | Reason |
+|---------|---------------|--------|
+| Theme configuration in config file | Week 4 | Nice-to-have, not essential |
+| Loading spinners for async ops | Week 6 | Requires async command execution refactor |
+| Multi-line command editing | Week 8 | Complexity vs value tradeoff |
+| Command templates/snippets | Week 8 | Nice-to-have |
+| Session save/restore | Week 9 | Complexity vs value tradeoff |
+| Configuration UI (theme selector) | Week 9 | Nice-to-have |
+| Lazy rendering | Week 9 | Complex refactor, current perf acceptable |
+| Virtual scrolling | Week 9 | Complex refactor, current perf acceptable |
+
+These features can be considered for v2.1.0+ based on user feedback.
+
+---
+
 ## Technical Specifications
 
 ### Keyboard Shortcuts
 
 #### Global
-| Key | Action | Context |
-|-----|--------|---------|
-| `Ctrl+C` | Exit TUI | Any |
-| `Ctrl+L` | Clear output | Any |
-| `Ctrl+P` | Command palette | Any (Phase 3) |
-| `?` | Toggle help overlay | Any |
-| `F1` | Focus sidebar | Any |
-| `F2` | Focus output | Any |
-| `F3` | Focus input | Any |
-| `Ctrl+Tab` | Next tab | Any (Phase 3) |
+| Key | Action | Status |
+|-----|--------|--------|
+| `Ctrl+C` | Exit TUI | ✅ |
+| `Ctrl+L` | Clear output | ✅ |
+| `Ctrl+P` | Command palette | ✅ |
+| `Ctrl+E` | Export output to file | ✅ |
+| `Ctrl+R` | Search history | ✅ |
+| `?` | Toggle help overlay | ✅ |
+| `F1` | Focus sidebar | ✅ |
+| `F2` | Focus output | ✅ |
+| `F3` | Focus input | ✅ |
+| `Ctrl+Tab` | Next tab | ✅ |
+| `Alt+1/2` | Switch to Command/Logs tab | ✅ |
 
 #### Input Area
-| Key | Action |
-|-----|--------|
-| `Enter` | Execute command |
-| `Ctrl+Enter` | Insert newline (Phase 3) |
-| `Tab` | Next completion |
-| `Shift+Tab` | Previous completion |
-| `Ctrl+R` | Search history |
-| `Ctrl+↑/↓` | Navigate history |
-| `Ctrl+W` | Delete word |
-| `Ctrl+U` | Clear line |
-| `Ctrl+A` / `Home` | Start of line |
-| `Ctrl+E` / `End` | End of line |
+| Key | Action | Status |
+|-----|--------|--------|
+| `Enter` | Execute command | ✅ |
+| `Tab` | Next completion | ✅ |
+| `Shift+Tab` | Previous completion | ✅ |
+| `↑/↓` | Navigate history | ✅ |
+| `Ctrl+Enter` | Insert newline | Post-v2.0 |
+| `Ctrl+W` | Delete word | Post-v2.0 |
+| `Ctrl+U` | Clear line | Post-v2.0 |
+| `Ctrl+A` / `Home` | Start of line | Post-v2.0 |
 
 #### Output Area
-| Key | Action |
-|-----|--------|
-| `↑/↓` | Scroll line |
-| `PgUp/PgDn` | Scroll page |
-| `Home/End` | Scroll to top/bottom |
-| `y` | Copy visible output (Phase 3) |
-| `/` | Search in output (Phase 3) |
+| Key | Action | Status |
+|-----|--------|--------|
+| `/` | Search in output | ✅ |
+| `↑/↓` | Scroll line | Post-v2.0 |
+| `PgUp/PgDn` | Scroll page | Post-v2.0 |
+| `Home/End` | Scroll to top/bottom | Post-v2.0 |
+| `y` | Copy visible output | Post-v2.0 |
 
-#### Vim-style (Optional)
+#### Vim-style (Optional) - Post-v2.0
 | Key | Action |
 |-----|--------|
 | `j/k` | Scroll output |

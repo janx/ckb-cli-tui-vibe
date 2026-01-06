@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_HISTORY_SIZE: usize = 1000;
 const MAX_OUTPUT_ENTRIES: usize = 1000;
+const MAX_OUTPUT_LINES_PER_ENTRY: usize = 500;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -129,9 +130,11 @@ impl CommandState {
     }
 
     pub fn add_output(&mut self, command: String, result: String, success: bool) {
+        let truncated_result = truncate_output(&result, MAX_OUTPUT_LINES_PER_ENTRY);
+
         let entry = OutputEntry {
             command,
-            result,
+            result: truncated_result,
             timestamp: current_timestamp(),
             success,
         };
@@ -152,6 +155,20 @@ fn current_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
+}
+
+fn truncate_output(output: &str, max_lines: usize) -> String {
+    let lines: Vec<&str> = output.lines().collect();
+    if lines.len() <= max_lines {
+        return output.to_string();
+    }
+
+    let truncated: String = lines[..max_lines].join("\n");
+    format!(
+        "{}\n\n... ({} more lines truncated)",
+        truncated,
+        lines.len() - max_lines
+    )
 }
 
 #[cfg(test)]

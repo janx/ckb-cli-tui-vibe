@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
-use std::io::Stdout;
+use std::fs::File;
+use std::io::{Stdout, Write};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
@@ -325,6 +326,9 @@ impl TuiApp {
             (KeyModifiers::CONTROL, KeyCode::Char('p')) => {
                 self.open_palette();
             }
+            (KeyModifiers::CONTROL, KeyCode::Char('e')) => {
+                self.export_output();
+            }
             (_, KeyCode::F(1)) => {
                 self.ui_state.focused_pane = Pane::Sidebar;
             }
@@ -496,6 +500,53 @@ impl TuiApp {
                 self.ui_state.output_search_query.pop();
             }
             _ => {}
+        }
+    }
+
+    fn export_output(&mut self) {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        let mut export_dir = self.ckb_cli_dir.clone();
+        export_dir.push("exports");
+
+        if let Err(e) = std::fs::create_dir_all(&export_dir) {
+            self.add_log(LogEntry::error(format!(
+                "Failed to create export dir: {}",
+                e
+            )));
+            return;
+        }
+
+        let filename = format!("output_{}.txt", timestamp);
+        let filepath = export_dir.join(&filename);
+
+        match File::create(&filepath) {
+            Ok(mut file) => {
+                let mut content = String::new();
+                for entry in &self.command_state.output_buffer {
+                    content.push_str(&format!("> {}\n", entry.command));
+                    content.push_str(&entry.result);
+                    content.push_str("\n\n");
+                }
+
+                match file.write_all(content.as_bytes()) {
+                    Ok(_) => {
+                        self.add_log(LogEntry::info(format!(
+                            "Output exported to {}",
+                            filepath.display()
+                        )));
+                    }
+                    Err(e) => {
+                        self.add_log(LogEntry::error(format!("Failed to write: {}", e)));
+                    }
+                }
+            }
+            Err(e) => {
+                self.add_log(LogEntry::error(format!("Failed to create file: {}", e)));
+            }
         }
     }
 

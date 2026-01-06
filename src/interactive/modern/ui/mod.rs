@@ -444,7 +444,7 @@ fn render_help_bar(frame: &mut Frame, area: Rect, theme: &Theme) {
 
 fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
     let popup_width = 50u16.min(frame.area().width - 4);
-    let popup_height = 21u16.min(frame.area().height - 4);
+    let popup_height = 22u16.min(frame.area().height - 4);
 
     let popup_x = (frame.area().width - popup_width) / 2;
     let popup_y = (frame.area().height - popup_height) / 2;
@@ -463,6 +463,10 @@ fn render_help_overlay(frame: &mut Frame, theme: &Theme) {
         Line::from(vec![
             Span::styled("Ctrl+L      ", Style::default().fg(theme.json_key)),
             Span::raw("Clear output"),
+        ]),
+        Line::from(vec![
+            Span::styled("Ctrl+E      ", Style::default().fg(theme.json_key)),
+            Span::raw("Export output to file"),
         ]),
         Line::from(vec![
             Span::styled("Ctrl+R      ", Style::default().fg(theme.json_key)),

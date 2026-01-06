@@ -2,7 +2,7 @@
 
 This is a fork of ckb-cli. Goals?
 
-1. having fun with vibe coding ([oh-my-opencode]()https://github.com/code-yeongyu/oh-my-opencode)
+1. having fun with vibe coding ([oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode))
 2. add a TUI optimized for modern terminal to make ckb-cli looks cooler
 
 <img width="1432" height="1998" alt="Screenshot From 2026-01-06 12-31-25" src="https://github.com/user-attachments/assets/7def4965-0f4b-4379-ad29-25617ec42992" />

@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::interactive::modern::state::Completion;
 
-const MAX_VISIBLE_COMPLETIONS: usize = 10;
+const MAX_VISIBLE_COMPLETIONS: usize = 15;
 
 pub fn render_completion_popup(
     frame: &mut Frame,
@@ -46,11 +46,9 @@ pub fn render_completion_popup(
 
     frame.render_widget(Clear, popup_area);
 
-    let scroll_offset = if selected_index >= MAX_VISIBLE_COMPLETIONS {
-        selected_index - MAX_VISIBLE_COMPLETIONS + 1
-    } else {
-        0
-    };
+    let scroll_offset = selected_index
+        .saturating_sub(MAX_VISIBLE_COMPLETIONS / 2)
+        .min(completions.len().saturating_sub(MAX_VISIBLE_COMPLETIONS));
 
     let lines: Vec<Line> = completions
         .iter()
@@ -116,11 +114,9 @@ pub fn render_history_search(
 
     lines.push(Line::from(""));
 
-    let scroll_offset = if selected_index >= MAX_VISIBLE_COMPLETIONS {
-        selected_index - MAX_VISIBLE_COMPLETIONS + 1
-    } else {
-        0
-    };
+    let scroll_offset = selected_index
+        .saturating_sub(MAX_VISIBLE_COMPLETIONS / 2)
+        .min(matches.len().saturating_sub(MAX_VISIBLE_COMPLETIONS));
 
     for (i, entry) in matches
         .iter()

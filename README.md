@@ -7,7 +7,7 @@ This is a fork of ckb-cli. Goals?
 
 <img width="1432" height="1998" alt="Screenshot From 2026-01-06 12-31-25" src="https://github.com/user-attachments/assets/7def4965-0f4b-4379-ad29-25617ec42992" />
 
-Commits are 100% vibe coding generated.
+Commits (except README.md) are 100% vibe coding generated.
 
 No maintainence. No need to buy me coffee.
 

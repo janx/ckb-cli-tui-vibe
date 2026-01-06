@@ -78,7 +78,7 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
             frame,
             &app.current_completions,
             app.ui_state.completion_index,
-            chunks[2],
+            chunks[3],
         );
     }
 

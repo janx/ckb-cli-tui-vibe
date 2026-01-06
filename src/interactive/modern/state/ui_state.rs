@@ -61,6 +61,8 @@ pub struct UiState {
     pub palette_index: usize,
     pub output_search_mode: bool,
     pub output_search_query: String,
+    pub last_command_success: Option<bool>,
+    pub mascot_frame: usize,
 }
 
 impl Default for UiState {
@@ -81,6 +83,8 @@ impl Default for UiState {
             palette_index: 0,
             output_search_mode: false,
             output_search_query: String::new(),
+            last_command_success: None,
+            mascot_frame: 0,
         }
     }
 }
@@ -142,5 +146,7 @@ mod tests {
         assert_eq!(state.current_tab, Tab::Command);
         assert!(!state.show_palette);
         assert!(!state.output_search_mode);
+        assert!(state.last_command_success.is_none());
+        assert_eq!(state.mascot_frame, 0);
     }
 }

@@ -1,5 +1,6 @@
 pub mod command_palette;
 pub mod completion;
+pub mod mascot;
 pub mod syntax;
 pub mod tabs;
 pub mod theme;
@@ -22,6 +23,8 @@ use theme::Theme;
 pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
     let theme = Theme::default();
 
+    let mascot_h = mascot::mascot_height();
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -41,12 +44,20 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
         ])
         .split(chunks[2]);
 
+    let output_with_mascot = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(mascot_h + 2), Constraint::Min(5)])
+        .split(main_chunks[0]);
+
+    let mascot_area = output_with_mascot[0];
+    let output_area = output_with_mascot[1];
+
     app.ui_state.layout = LayoutAreas {
         output: (
-            main_chunks[0].x,
-            main_chunks[0].y,
-            main_chunks[0].width,
-            main_chunks[0].height,
+            output_area.x,
+            output_area.y,
+            output_area.width,
+            output_area.height,
         ),
         sidebar: (
             main_chunks[1].x,
@@ -60,12 +71,14 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
     render_status_bar(frame, chunks[0], app, chain_state, &theme);
     tabs::render_tab_bar(frame, chunks[1], app.ui_state.current_tab, &theme);
 
+    render_mascot(frame, mascot_area, app, &theme);
+
     match app.ui_state.current_tab {
         Tab::Command => {
-            render_output(frame, main_chunks[0], app, &theme);
+            render_output(frame, output_area, app, &theme);
         }
         Tab::Logs => {
-            render_logs(frame, main_chunks[0], app, &theme);
+            render_logs(frame, output_area, app, &theme);
         }
     }
 
@@ -106,6 +119,38 @@ pub fn render(frame: &mut Frame, app: &mut TuiApp, chain_state: &ChainState) {
     if app.ui_state.show_help {
         render_help_overlay(frame, &theme);
     }
+}
+
+fn render_mascot(frame: &mut Frame, area: Rect, app: &TuiApp, theme: &Theme) {
+    let success = app.ui_state.last_command_success.unwrap_or(true);
+    let frame_index = app.ui_state.mascot_frame;
+
+    let canvas_width = area.width.saturating_sub(2) as usize;
+    let mascot_lines = mascot::get_mascot_lines(success, frame_index, canvas_width);
+
+    let mascot_color = if !success && app.ui_state.last_command_success.is_some() {
+        theme.output_error
+    } else {
+        theme.highlight
+    };
+
+    let lines: Vec<Line> = mascot_lines
+        .iter()
+        .map(|line| {
+            Line::from(Span::styled(
+                line.clone(),
+                Style::default().fg(mascot_color),
+            ))
+        })
+        .collect();
+
+    let mascot_widget = Paragraph::new(lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(mascot_color)),
+    );
+
+    frame.render_widget(mascot_widget, area);
 }
 
 fn render_status_bar(

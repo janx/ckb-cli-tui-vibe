@@ -373,9 +373,11 @@ impl TuiApp {
             }
             (_, KeyCode::Char(c)) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.input.push(c);
+                self.ui_state.mascot_frame = self.ui_state.mascot_frame.wrapping_add(1);
             }
             (_, KeyCode::Backspace) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.input.pop();
+                self.ui_state.mascot_frame = self.ui_state.mascot_frame.wrapping_add(1);
             }
             (_, KeyCode::Up) if self.ui_state.focused_pane == Pane::Input => {
                 self.command_state.navigate_history_up();
@@ -672,11 +674,13 @@ impl TuiApp {
                     self.add_log(LogEntry::warn("Command returned with warning"));
                 }
                 self.command_state.add_output(input, clean_output, success);
+                self.ui_state.last_command_success = Some(success);
             }
             Err(err) => {
                 let clean_err = self.strip_ansi(&err);
                 self.add_log(LogEntry::error(format!("Command failed: {}", clean_err)));
                 self.command_state.add_output(input, clean_err, false);
+                self.ui_state.last_command_success = Some(false);
             }
         }
 

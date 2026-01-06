@@ -21,34 +21,42 @@ pub fn render_completion_popup(
     }
 
     let visible_count = completions.len().min(MAX_VISIBLE_COMPLETIONS);
-    let popup_height = visible_count as u16 + 2;
+    let popup_height = (visible_count as u16) + 2;
     let popup_width = completions
         .iter()
         .map(|c| c.display.len())
         .max()
         .unwrap_or(20)
-        .max(20) as u16
+        .max(30) as u16
         + 4;
 
     let popup_x = input_area.x + 6;
     let popup_y = if input_area.y >= popup_height {
         input_area.y - popup_height
+    } else if frame.area().height > popup_height {
+        frame.area().height - popup_height - input_area.height - 1
     } else {
-        input_area.y + input_area.height
+        0
     };
 
     let popup_area = Rect::new(
         popup_x.min(frame.area().width.saturating_sub(popup_width)),
         popup_y,
-        popup_width.min(frame.area().width - popup_x),
-        popup_height.min(frame.area().height.saturating_sub(popup_y)),
+        popup_width.min(frame.area().width.saturating_sub(popup_x)),
+        popup_height,
     );
 
     frame.render_widget(Clear, popup_area);
 
-    let scroll_offset = selected_index
-        .saturating_sub(MAX_VISIBLE_COMPLETIONS / 2)
-        .min(completions.len().saturating_sub(MAX_VISIBLE_COMPLETIONS));
+    let scroll_offset = if completions.len() <= MAX_VISIBLE_COMPLETIONS {
+        0
+    } else if selected_index < MAX_VISIBLE_COMPLETIONS / 2 {
+        0
+    } else if selected_index >= completions.len() - MAX_VISIBLE_COMPLETIONS / 2 {
+        completions.len() - MAX_VISIBLE_COMPLETIONS
+    } else {
+        selected_index - MAX_VISIBLE_COMPLETIONS / 2
+    };
 
     let lines: Vec<Line> = completions
         .iter()
